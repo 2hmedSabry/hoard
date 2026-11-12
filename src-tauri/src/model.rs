@@ -102,6 +102,10 @@ pub struct Folder {
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub color: Option<String>,
+    /// Argon2 hash of the folder's password. Locked folders hide their
+    /// items in Hoard; the files on disk are not encrypted.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lock: Option<String>,
     #[serde(default)]
     pub children: Vec<Folder>,
 }

@@ -151,7 +151,7 @@ fn read_feature(lib: &Library, id: &str) -> Option<Vec<f32>> {
 pub fn similar(lib: &Library, id: &str, limit: usize) -> Result<Vec<Item>> {
     let target = read_feature(lib, id).ok_or_else(|| anyhow!("This item hasn't been analysed yet. Try again in a moment."))?;
     let mut scored: Vec<(f32, Item)> = lib
-        .all_items(false)?
+        .visible_items()?
         .into_iter()
         .filter(|it| it.id != id)
         .filter_map(|it| {

@@ -389,6 +389,34 @@ async fn crop_item(app: AppHandle, id: String, x: f32, y: f32, w: f32, h: f32) -
 }
 
 #[tauri::command]
+fn lock_folder(st: State<AppState>, id: String, password: String) -> R<()> {
+    with_lib(&st, |l| l.lock_folder(&id, &password))
+}
+
+#[tauri::command]
+fn unlock_folder(st: State<AppState>, id: String, password: String) -> R<bool> {
+    with_lib(&st, |l| l.unlock_folder(&id, &password))
+}
+
+#[tauri::command]
+fn relock_folder(st: State<AppState>, id: String) -> R<()> {
+    with_lib(&st, |l| {
+        l.relock_folder(&id);
+        Ok(())
+    })
+}
+
+#[tauri::command]
+fn remove_folder_lock(st: State<AppState>, id: String, password: String) -> R<bool> {
+    with_lib(&st, |l| l.remove_lock(&id, &password))
+}
+
+#[tauri::command]
+fn unlocked_folders(st: State<AppState>) -> R<Vec<String>> {
+    with_lib(&st, |l| Ok(l.unlocked_ids()))
+}
+
+#[tauri::command]
 fn add_watched_folder(st: State<AppState>, path: String, folder_id: Option<String>) -> R<()> {
     with_lib(&st, |l| l.add_watched(&path, folder_id))
 }
@@ -449,6 +477,11 @@ pub fn run() {
             import_paths,
             add_watched_folder,
             set_folder_color,
+            lock_folder,
+            unlock_folder,
+            relock_folder,
+            remove_folder_lock,
+            unlocked_folders,
             crop_item,
             save_tag_group,
             delete_tag_group,
@@ -603,6 +636,28 @@ mod tests {
         let rule = Rule { field: "camera".into(), op: "contains".into(), value: "testcam".into() };
         let sf = lib.create_smart_folder("TestCam shots", "all", vec![rule]).unwrap();
         assert_eq!(names(&lib, &sf.id), vec!["camera-photo"]);
+
+        // Locked folders hide their items everywhere until unlocked.
+        let vault = lib.create_folder("Private", None).unwrap();
+        let secret = q(&lib, |q| q.text = Some("purple".into())).into_iter().next().map(|i| i.id).unwrap_or_else(|| q(&lib, |_| {})[0].id.clone());
+        lib.update_items(&[secret.clone()], &ItemPatch { add_folders: vec![vault.id.clone()], add_tags: vec!["hush".into()], ..Default::default() }).unwrap();
+        let before = lib.stats().unwrap().all;
+        assert!(lib.lock_folder(&vault.id, "abc").is_err(), "short password refused");
+        lib.lock_folder(&vault.id, "open sesame").unwrap();
+        assert_eq!(lib.stats().unwrap().all, before - 1);
+        assert!(!q(&lib, |_| {}).iter().any(|i| i.id == secret), "hidden from All");
+        assert!(q(&lib, |q| q.text = Some("hush".into())).is_empty(), "hidden from search");
+        assert!(q(&lib, |q| { q.scope = "folder".into(); q.folder_id = Some(vault.id.clone()) }).is_empty());
+        assert!(!lib.stats().unwrap().tags.iter().any(|(t, _)| t == "hush"), "tag counts hide it");
+        assert!(!lib.unlock_folder(&vault.id, "wrong").unwrap());
+        assert!(lib.unlock_folder(&vault.id, "open sesame").unwrap());
+        assert_eq!(q(&lib, |q| { q.scope = "folder".into(); q.folder_id = Some(vault.id.clone()) }).len(), 1);
+        assert_eq!(lib.stats().unwrap().all, before);
+        lib.relock_folder(&vault.id);
+        assert_eq!(lib.stats().unwrap().all, before - 1);
+        assert!(lib.meta.folders.iter().find(|f| f.id == vault.id).unwrap().lock.as_deref().unwrap().starts_with("$argon2"));
+        assert!(lib.remove_lock(&vault.id, "open sesame").unwrap());
+        assert_eq!(lib.stats().unwrap().all, before);
 
         // Index is disposable: delete it and reopen.
         let root = lib.root.clone();

@@ -27,6 +27,20 @@ pub struct Library {
     pub root: PathBuf,
     pub meta: LibraryMeta,
     db: Connection,
+    /// Locked folders opened with their password in this session.
+    unlocked: HashSet<String>,
+}
+
+fn hash_password(pw: &str) -> Result<String> {
+    use argon2::password_hash::{PasswordHasher, SaltString};
+    // 16 random bytes from a v4 UUID (OS randomness).
+    let salt = SaltString::encode_b64(uuid::Uuid::new_v4().as_bytes()).map_err(|e| anyhow!("{e}"))?;
+    Ok(argon2::Argon2::default().hash_password(pw.as_bytes(), &salt).map_err(|e| anyhow!("{e}"))?.to_string())
+}
+
+fn check_password(hash: &str, pw: &str) -> bool {
+    use argon2::password_hash::{PasswordHash, PasswordVerifier};
+    PasswordHash::new(hash).map(|h| argon2::Argon2::default().verify_password(pw.as_bytes(), &h).is_ok()).unwrap_or(false)
 }
 
 pub fn write_json<T: serde::Serialize>(path: &Path, v: &T) -> Result<()> {
@@ -118,11 +132,91 @@ impl Library {
         let fresh = !db_path.exists();
         let db = Connection::open(&db_path)?;
         db.execute_batch(SCHEMA)?;
-        let mut lib = Library { root: root.to_path_buf(), meta, db };
+        let mut lib = Library { root: root.to_path_buf(), meta, db, unlocked: HashSet::new() };
         if fresh {
             lib.rebuild_index()?;
         }
         Ok(lib)
+    }
+
+    /// Folders whose items are hidden right now: locked ones not opened this
+    /// session, and everything inside them.
+    pub fn hidden_folders(&self) -> Vec<String> {
+        fn walk(list: &[Folder], unlocked: &HashSet<String>, out: &mut Vec<String>) {
+            for f in list {
+                if f.lock.is_some() && !unlocked.contains(&f.id) {
+                    out.extend(folder_and_descendants(f));
+                } else {
+                    walk(&f.children, unlocked, out);
+                }
+            }
+        }
+        let mut out = vec![];
+        walk(&self.meta.folders, &self.unlocked, &mut out);
+        out
+    }
+
+    /// SQL that leaves out items in hidden folders (ids are our own hex ids).
+    fn hidden_sql(&self, id_col: &str) -> String {
+        let ids: Vec<String> = self
+            .hidden_folders()
+            .into_iter()
+            .filter(|i| i.chars().all(|c| c.is_ascii_alphanumeric()))
+            .map(|i| format!("'{i}'"))
+            .collect();
+        if ids.is_empty() {
+            String::new()
+        } else {
+            format!(" AND {id_col} NOT IN (SELECT item_id FROM item_folders WHERE folder_id IN ({}))", ids.join(","))
+        }
+    }
+
+    pub fn visible_items(&self) -> Result<Vec<Item>> {
+        let mut st = self.db.prepare(&format!("SELECT json FROM items WHERE deleted=0{}", self.hidden_sql("id")))?;
+        let rows = st.query_map([], |r| r.get::<_, String>(0))?;
+        let mut out = vec![];
+        for r in rows {
+            out.push(serde_json::from_str(&r?)?);
+        }
+        Ok(out)
+    }
+
+    pub fn lock_folder(&mut self, id: &str, password: &str) -> Result<()> {
+        if password.chars().count() < 4 {
+            bail!("Use at least 4 characters");
+        }
+        let hash = hash_password(password)?;
+        find_folder_mut(&mut self.meta.folders, id).ok_or_else(|| anyhow!("Folder not found"))?.lock = Some(hash);
+        self.unlocked.remove(id);
+        self.save_meta()
+    }
+
+    pub fn unlock_folder(&mut self, id: &str, password: &str) -> Result<bool> {
+        let f = find_folder(&self.meta.folders, id).ok_or_else(|| anyhow!("Folder not found"))?;
+        let ok = f.lock.as_deref().map(|h| check_password(h, password)).unwrap_or(true);
+        if ok {
+            self.unlocked.insert(id.to_string());
+        }
+        Ok(ok)
+    }
+
+    /// Hides an unlocked folder again without changing its password.
+    pub fn relock_folder(&mut self, id: &str) {
+        self.unlocked.remove(id);
+    }
+
+    pub fn remove_lock(&mut self, id: &str, password: &str) -> Result<bool> {
+        if !self.unlock_folder(id, password)? {
+            return Ok(false);
+        }
+        find_folder_mut(&mut self.meta.folders, id).ok_or_else(|| anyhow!("Folder not found"))?.lock = None;
+        self.unlocked.remove(id);
+        self.save_meta()?;
+        Ok(true)
+    }
+
+    pub fn unlocked_ids(&self) -> Vec<String> {
+        self.unlocked.iter().cloned().collect()
     }
 
     pub fn info(&self) -> LibraryInfo {
@@ -186,7 +280,10 @@ impl Library {
     }
 
     pub fn query(&self, q: &Query) -> Result<Vec<Item>> {
-        let mut sql = String::from("SELECT json FROM items WHERE deleted=?");
+        if q.scope == "folder" && q.folder_id.as_ref().map(|f| self.hidden_folders().contains(f)).unwrap_or(false) {
+            return Ok(vec![]);
+        }
+        let mut sql = format!("SELECT json FROM items WHERE deleted=?{}", self.hidden_sql("id"));
         let mut args: Vec<Box<dyn ToSql>> = vec![Box::new((q.scope == "trash") as i64)];
         match q.scope.as_str() {
             "uncategorized" => sql.push_str(" AND id NOT IN (SELECT item_id FROM item_folders)"),
@@ -263,7 +360,11 @@ impl Library {
     }
 
     pub fn stats(&self) -> Result<Stats> {
-        let count = |sql: &str| -> Result<i64> { Ok(self.db.query_row(sql, [], |r| r.get(0))?) };
+        let hid = self.hidden_sql("items.id");
+        let count = |sql: &str| -> Result<i64> {
+            let sql = sql.replacen(" WHERE ", &format!(" WHERE 1=1{hid} AND "), 1);
+            Ok(self.db.query_row(&sql, [], |r| r.get(0))?)
+        };
         let mut s = Stats {
             all: count("SELECT COUNT(*) FROM items WHERE deleted=0")?,
             uncategorized: count("SELECT COUNT(*) FROM items WHERE deleted=0 AND id NOT IN (SELECT item_id FROM item_folders)")?,
@@ -273,20 +374,20 @@ impl Library {
             ..Default::default()
         };
         let mut st = self.db.prepare(
-            "SELECT folder_id, COUNT(*) FROM item_folders JOIN items ON items.id=item_id WHERE deleted=0 GROUP BY folder_id",
+            &format!("SELECT folder_id, COUNT(*) FROM item_folders JOIN items ON items.id=item_id WHERE deleted=0{hid} GROUP BY folder_id"),
         )?;
         for r in st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))? {
             let (k, v) = r?;
             s.folders.insert(k, v);
         }
         let mut st = self.db.prepare(
-            "SELECT tag, COUNT(*) FROM item_tags JOIN items ON items.id=item_id WHERE deleted=0 GROUP BY tag ORDER BY tag COLLATE NOCASE",
+            &format!("SELECT tag, COUNT(*) FROM item_tags JOIN items ON items.id=item_id WHERE deleted=0{hid} GROUP BY tag ORDER BY tag COLLATE NOCASE"),
         )?;
         for r in st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))? {
             s.tags.push(r?);
         }
         if !self.meta.smart_folders.is_empty() {
-            let items = self.all_items(false)?;
+            let items = self.visible_items()?;
             let now = now_ms();
             for sf in &self.meta.smart_folders {
                 let n = items.iter().filter(|it| rules::matches(sf, it, &self.meta, now)).count();
@@ -360,7 +461,7 @@ impl Library {
         if name.is_empty() {
             bail!("Folder name is empty");
         }
-        let f = Folder { id: new_id(), name: name.into(), color: None, children: vec![] };
+        let f = Folder { id: new_id(), name: name.into(), color: None, lock: None, children: vec![] };
         match parent {
             Some(pid) => find_folder_mut(&mut self.meta.folders, pid)
                 .ok_or_else(|| anyhow!("Parent folder not found"))?
@@ -519,7 +620,7 @@ impl Library {
     /// pictures (dHash Hamming distance up to `max_distance`).
     pub fn duplicates(&mut self, max_distance: u32) -> Result<Vec<DupGroup>> {
         self.ensure_hashes()?;
-        let items = self.all_items(false)?;
+        let items = self.visible_items()?;
         let n = items.len();
         let mut parent: Vec<usize> = (0..n).collect();
         fn find(p: &mut Vec<usize>, mut i: usize) -> usize {

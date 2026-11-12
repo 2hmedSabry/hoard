@@ -7,6 +7,7 @@ import type { Folder, LibraryInfo, Query, Rule, Scope, SmartFolder, Stats } from
 import SmartFolderEditor from "./SmartFolderEditor";
 import type { PluginInfo } from "./PluginHost";
 import BrowserConnect from "./BrowserConnect";
+import PasswordPrompt from "./PasswordPrompt";
 import WatchedFolders from "./WatchedFolders";
 import { getTheme, setTheme, type ThemePref } from "../theme";
 import { getLangPref, LANGS, setLang, type LangPref } from "../i18n";
@@ -37,6 +38,10 @@ export default function Sidebar(p: Props) {
   const [menu, setMenu] = useState<string | null>(null);
   const [libMenu, setLibMenu] = useState(false);
   const [connect, setConnect] = useState(false);
+  const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
+  const [pwPrompt, setPwPrompt] = useState<{ mode: "set" | "unlock" | "remove"; folder: Folder } | null>(null);
+  const loadUnlocked = () => api.unlockedFolders().then((ids) => setUnlocked(new Set(ids))).catch(fail);
+  useEffect(() => { loadUnlocked(); }, [lib.root]); // eslint-disable-line
   const [plugins, setPlugins] = useState<PluginInfo[]>([]);
   const loadPlugins = () => api.listPlugins().then(setPlugins).catch(fail);
   useEffect(() => { loadPlugins(); }, []); // eslint-disable-line
@@ -133,12 +138,12 @@ export default function Sidebar(p: Props) {
           className={`nav-row folder${active("folder", f.id) ? " active" : ""}`}
           style={{ paddingInlineStart: 8 + depth * 14 }} data-drop={f.id}
           onMouseDown={(e) => { if (!(e.target as HTMLElement).closest("input, .more, .twisty, .menu")) beginDrag(e, () => ({ kind: "folder", id: f.id }), () => f.name); }}
-          onClick={() => go("folder", f.id)}
+          onClick={() => (f.lock && !unlocked.has(f.id) ? setPwPrompt({ mode: "unlock", folder: f }) : go("folder", f.id))}
           onDoubleClick={() => setEditing({ kind: "rename", id: f.id })}
         >
           <span className={`twisty${f.children.length ? "" : " empty"}${isOpen ? " open" : ""}`}
             onClick={(e) => { e.stopPropagation(); toggle(f.id); }}>▸</span>
-          <span className="icon folder-icon" style={f.color ? { color: f.color } : undefined}>{f.color ? "■" : "▢"}</span>
+          <span className="icon folder-icon" style={f.color ? { color: f.color } : undefined}>{f.lock ? (unlocked.has(f.id) ? "🔓" : "🔒") : f.color ? "■" : "▢"}</span>
           {editing?.kind === "rename" && editing.id === f.id ? (
             <InlineEdit initial={f.name} onDone={(v) => { setEditing(null); if (v && v !== f.name) run(() => api.renameFolder(f.id, v)); }} />
           ) : <span className="label">{f.name}</span>}
@@ -153,6 +158,9 @@ export default function Sidebar(p: Props) {
                 {f.color && <button className="swatch none" title={tr("No colour")} onClick={() => { setMenu(null); run(() => api.setFolderColor(f.id, null)); }}>×</button>}
               </div>
               {depth > 0 && <button onClick={() => { setMenu(null); run(() => api.moveFolder(f.id, null)); }}>{tr("Move to top level")}</button>}
+              {!f.lock && <button onClick={() => { setMenu(null); setPwPrompt({ mode: "set", folder: f }); }}>{tr("Lock with password…")}</button>}
+              {f.lock && unlocked.has(f.id) && <button onClick={() => { setMenu(null); if (active("folder", f.id)) go("all"); run(() => api.relockFolder(f.id)).then(loadUnlocked); }}>{tr("Lock now")}</button>}
+              {f.lock && <button onClick={() => { setMenu(null); setPwPrompt({ mode: "remove", folder: f }); }}>{tr("Remove password…")}</button>}
               <button className="danger" onClick={async () => {
                 setMenu(null);
                 const ok = await ask(tr("Delete the folder “{name}” and its subfolders? The items stay in your library.", { name: f.name }), { title: tr("Delete folder"), kind: "warning", okLabel: tr("Delete"), cancelLabel: tr("Cancel") });
@@ -336,6 +344,17 @@ export default function Sidebar(p: Props) {
       </div>
       {!!stats?.aiPending && <div className="ai-status"><span className="spin" /> {tr("Analysing {n} items on this Mac…", { n: stats.aiPending })}</div>}
       {watching && <WatchedFolders lib={lib} onChange={p.onLibChange} onClose={() => setWatching(false)} fail={fail} />}
+      {pwPrompt && (
+        <PasswordPrompt mode={pwPrompt.mode} folderName={pwPrompt.folder.name} onClose={() => setPwPrompt(null)}
+          onSubmit={async (pw) => {
+            const f = pwPrompt.folder;
+            if (pwPrompt.mode === "set") { await api.lockFolder(f.id, pw); if (active("folder", f.id)) go("all"); }
+            else if (pwPrompt.mode === "unlock") { if (!(await api.unlockFolder(f.id, pw))) return false; go("folder", f.id); }
+            else if (!(await api.removeFolderLock(f.id, pw))) return false;
+            await loadUnlocked();
+            p.onLibChange();
+          }} />
+      )}
       {connect && <BrowserConnect onClose={() => setConnect(false)} fail={fail} />}
       {smartEdit && (
         <SmartFolderEditor
