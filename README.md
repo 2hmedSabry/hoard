@@ -9,6 +9,7 @@ Built with [Tauri 2](https://tauri.app), Rust and React.
 - **Libraries you own.** A library is a normal folder ending in `.hoard`. Each item lives in its own subfolder with the original file, a thumbnail and an `item.json` sidecar. Nothing is locked in a database: the SQLite search index can be rebuilt from the sidecars at any time.
 - **Import anything.** Drag files or whole folders into the window, or use Import. Hidden files are skipped.
 - **Thumbnails for many formats.** Common images are decoded natively; videos get a poster frame with `ffmpeg`; PDFs, PSD, HEIC, SVG, fonts, Office and iWork files use macOS Quick Look.
+- **Watched folders.** Point Hoard at Downloads, Screenshots or any folder and new files are imported automatically (once they've finished copying), into a library folder of your choice.
 - **Organise.** Nested folders (drag items onto folders, drag folders into folders), tags, 1–5 star ratings, notes and source links.
 - **Smart folders.** Save rules (tags, type, size, rating, orientation, colour, date added and more, matching all or any) and matching items collect themselves.
 - **Duplicates.** Exact copies are skipped on import. A review screen finds identical files and resized or re-saved pictures, suggests the best copy to keep, and moves the rest to the Trash while keeping their tags, folders and notes.

@@ -5,6 +5,7 @@ import { beginDrag, type DropDetail } from "../drag";
 import type { Folder, LibraryInfo, Query, Rule, Scope, SmartFolder, Stats } from "../types";
 import SmartFolderEditor from "./SmartFolderEditor";
 import BrowserConnect from "./BrowserConnect";
+import WatchedFolders from "./WatchedFolders";
 import { getTheme, setTheme, type ThemePref } from "../theme";
 import InlineEdit from "./InlineEdit";
 
@@ -32,6 +33,7 @@ export default function Sidebar(p: Props) {
   const [menu, setMenu] = useState<string | null>(null);
   const [libMenu, setLibMenu] = useState(false);
   const [connect, setConnect] = useState(false);
+  const [watching, setWatching] = useState(false);
   const [theme, setThemeState] = useState<ThemePref>(getTheme);
   const [smartEdit, setSmartEdit] = useState<SmartFolder | "new" | null>(null);
   const { open, toggle } = useExpanded();
@@ -135,6 +137,7 @@ export default function Sidebar(p: Props) {
             <button onClick={() => { setLibMenu(false); switchLibrary(); }}>Open library…</button>
             <button onClick={() => { setLibMenu(false); setEditing({ kind: "library" }); }}>New library…</button>
             <button onClick={() => { setLibMenu(false); run(async () => { await api.rebuildIndex(); }); }}>Rebuild search index</button>
+            <button onClick={() => { setLibMenu(false); setWatching(true); }}>Watched folders…</button>
             <button onClick={() => { setLibMenu(false); setConnect(true); }}>Browser extension…</button>
             <div className="menu-label">Appearance</div>
             <div className="theme-switch">
@@ -225,6 +228,7 @@ export default function Sidebar(p: Props) {
           {!stats?.tags.length && <p className="muted small pad">Tags you add to items show up here.</p>}
         </div>
       </div>
+      {watching && <WatchedFolders lib={lib} onChange={p.onLibChange} onClose={() => setWatching(false)} fail={fail} />}
       {connect && <BrowserConnect onClose={() => setConnect(false)} fail={fail} />}
       {smartEdit && (
         <SmartFolderEditor

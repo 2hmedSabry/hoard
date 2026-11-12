@@ -5,6 +5,7 @@ mod library;
 mod model;
 mod palette;
 mod rules;
+mod watch;
 
 use library::Library;
 use model::*;
@@ -194,70 +195,88 @@ fn open_url(url: String) -> R<()> {
     Ok(())
 }
 
-/// Copies files into the library in batches so the grid fills in as it goes.
-#[tauri::command]
-async fn import_paths(app: AppHandle, paths: Vec<String>, folder_id: Option<String>) -> R<usize> {
-    tauri::async_runtime::spawn_blocking(move || -> R<usize> {
-        let (root, known) = {
+/// Imports files in batches so the grid fills in as it goes. Used by the
+/// Import button, drag and drop, and watched folders.
+pub(crate) fn import_files(app: &AppHandle, files: Vec<PathBuf>, folder_id: Option<String>, show_progress: bool) -> R<usize> {
+    let (root, known) = {
+        let st = app.state::<AppState>();
+        let mut g = st.lib.lock().map_err(err)?;
+        let lib = g.as_mut().ok_or_else(|| "No library is open".to_string())?;
+        (lib.root.clone(), lib.file_hashes().map_err(err)?)
+    };
+    let seen = std::sync::Mutex::new(known);
+    let skipped = AtomicUsize::new(0);
+    let total = files.len();
+    let items_dir = root.join("items");
+    let done = AtomicUsize::new(0);
+    let failed = AtomicUsize::new(0);
+    let pool = rayon::ThreadPoolBuilder::new().num_threads(4).build().map_err(err)?;
+    let progress = |d: usize| {
+        if show_progress {
+            let _ = app.emit(
+                "import-progress",
+                ImportProgress { done: d, total, failed: failed.load(Ordering::SeqCst), skipped: skipped.load(Ordering::SeqCst) },
+            );
+        }
+    };
+    progress(0);
+    let mut imported = 0;
+    for chunk in files.chunks(24) {
+        let items: Vec<Item> = pool.install(|| {
+            chunk
+                .par_iter()
+                .filter_map(|f| {
+                    let r = import::import_file(&items_dir, f, folder_id.as_deref(), &seen);
+                    match &r {
+                        Err(_) => {
+                            failed.fetch_add(1, Ordering::SeqCst);
+                        }
+                        Ok(None) => {
+                            skipped.fetch_add(1, Ordering::SeqCst);
+                        }
+                        Ok(Some(_)) => {}
+                    }
+                    progress(done.fetch_add(1, Ordering::SeqCst) + 1);
+                    r.ok().flatten()
+                })
+                .collect()
+        });
+        {
             let st = app.state::<AppState>();
             let mut g = st.lib.lock().map_err(err)?;
-            let lib = g.as_mut().ok_or_else(|| "No library is open".to_string())?;
-            (lib.root.clone(), lib.file_hashes().map_err(err)?)
-        };
-        let seen = std::sync::Mutex::new(known);
-        let skipped = AtomicUsize::new(0);
-        let files = import::collect_files(&paths);
-        let total = files.len();
-        let items_dir = root.join("items");
-        let done = AtomicUsize::new(0);
-        let failed = AtomicUsize::new(0);
-        let pool = rayon::ThreadPoolBuilder::new().num_threads(4).build().map_err(err)?;
-        let _ = app.emit("import-progress", ImportProgress { done: 0, total, failed: 0, skipped: 0 });
-        let mut imported = 0;
-        for chunk in files.chunks(24) {
-            let items: Vec<Item> = pool.install(|| {
-                chunk
-                    .par_iter()
-                    .filter_map(|f| {
-                        let r = import::import_file(&items_dir, f, folder_id.as_deref(), &seen);
-                        match &r {
-                            Err(_) => {
-                                failed.fetch_add(1, Ordering::SeqCst);
-                            }
-                            Ok(None) => {
-                                skipped.fetch_add(1, Ordering::SeqCst);
-                            }
-                            Ok(Some(_)) => {}
-                        }
-                        let d = done.fetch_add(1, Ordering::SeqCst) + 1;
-                        let _ = app.emit(
-                            "import-progress",
-                            ImportProgress {
-                                done: d,
-                                total,
-                                failed: failed.load(Ordering::SeqCst),
-                                skipped: skipped.load(Ordering::SeqCst),
-                            },
-                        );
-                        r.ok().flatten()
-                    })
-                    .collect()
-            });
-            {
-                let st = app.state::<AppState>();
-                let mut g = st.lib.lock().map_err(err)?;
-                match g.as_mut() {
-                    Some(lib) if lib.root == root => lib.index_items(&items).map_err(err)?,
-                    _ => return Err("The library was closed during import".into()),
-                }
+            match g.as_mut() {
+                Some(lib) if lib.root == root => lib.index_items(&items).map_err(err)?,
+                _ => return Err("The library was closed during import".into()),
             }
-            imported += items.len();
+        }
+        imported += items.len();
+        if !items.is_empty() {
             let _ = app.emit("items-imported", imported);
         }
-        Ok(imported)
-    })
-    .await
-    .map_err(err)?
+    }
+    Ok(imported)
+}
+
+#[tauri::command]
+async fn import_paths(app: AppHandle, paths: Vec<String>, folder_id: Option<String>) -> R<usize> {
+    tauri::async_runtime::spawn_blocking(move || import_files(&app, import::collect_files(&paths), folder_id, true))
+        .await
+        .map_err(err)?
+}
+
+#[tauri::command]
+fn add_watched_folder(st: State<AppState>, path: String, folder_id: Option<String>) -> R<()> {
+    with_lib(&st, |l| l.add_watched(&path, folder_id))
+}
+
+#[tauri::command]
+fn update_watched_folder(st: State<AppState>, id: String, enabled: bool, folder_id: Option<String>) -> R<()> {
+    with_lib(&st, |l| l.update_watched(&id, enabled, folder_id))
+}
+
+#[tauri::command]
+fn remove_watched_folder(st: State<AppState>, id: String) -> R<()> {
+    with_lib(&st, |l| l.remove_watched(&id))
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -268,6 +287,7 @@ pub fn run() {
         .manage(api_server::ApiState::default())
         .setup(|app| {
             api_server::start(app.handle().clone());
+            watch::start(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -295,7 +315,10 @@ pub fn run() {
             open_url,
             api_info,
             regenerate_api_token,
-            import_paths
+            import_paths,
+            add_watched_folder,
+            update_watched_folder,
+            remove_watched_folder
         ])
         .run(tauri::generate_context!())
         .expect("error while running Hoard");

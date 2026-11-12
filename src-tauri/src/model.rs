@@ -85,6 +85,23 @@ pub struct SmartFolder {
     pub rules: Vec<Rule>,
 }
 
+fn yes() -> bool {
+    true
+}
+
+/// A folder on disk whose new files are imported automatically.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct WatchedFolder {
+    pub id: String,
+    pub path: String,
+    /// Library folder new items go into.
+    #[serde(default)]
+    pub folder_id: Option<String>,
+    #[serde(default = "yes")]
+    pub enabled: bool,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct LibraryMeta {
@@ -94,6 +111,8 @@ pub struct LibraryMeta {
     pub folders: Vec<Folder>,
     #[serde(default)]
     pub smart_folders: Vec<SmartFolder>,
+    #[serde(default)]
+    pub watched: Vec<WatchedFolder>,
     pub created_at: i64,
 }
 

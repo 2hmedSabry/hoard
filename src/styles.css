@@ -362,3 +362,9 @@ input, textarea, select { padding: 4px 8px; border-radius: 6px; }
 .menu .theme-switch button:hover { background: var(--active); color: var(--text); }
 .menu .theme-switch button.on:hover { background: var(--accent); color: #fff; }
 .menu-label { font-size: 10.5px; color: var(--faint); padding: 6px 10px 0; text-transform: uppercase; letter-spacing: 0.06em; }
+
+.watch-list { display: flex; flex-direction: column; gap: 6px; }
+.watch-row { display: grid; grid-template-columns: 22px 1fr 170px 26px; gap: 8px; align-items: center; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); }
+.watch-row.off { opacity: 0.55; }
+.watch-path { display: flex; flex-direction: column; min-width: 0; }
+.watch-path span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

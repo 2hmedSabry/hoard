@@ -90,7 +90,7 @@ impl Library {
             bail!("A library named \"{clean}\" already exists in that folder");
         }
         fs::create_dir_all(root.join("items"))?;
-        let meta = LibraryMeta { name: clean, version: 1, folders: vec![], smart_folders: vec![], created_at: now_ms() };
+        let meta = LibraryMeta { name: clean, version: 1, folders: vec![], smart_folders: vec![], watched: vec![], created_at: now_ms() };
         write_json(&root.join("library.json"), &meta)?;
         Self::open(&root)
     }
@@ -561,6 +561,35 @@ impl Library {
             .collect();
         out.sort_by(|a, b| b.items.len().cmp(&a.items.len()).then(b.items[0].created_at.cmp(&a.items[0].created_at)));
         Ok(out)
+    }
+
+    pub fn add_watched(&mut self, path: &str, folder_id: Option<String>) -> Result<()> {
+        let p = Path::new(path).canonicalize().with_context(|| format!("Can't open {path}"))?;
+        if !p.is_dir() {
+            bail!("Choose a folder, not a file");
+        }
+        let root = self.root.canonicalize().unwrap_or(self.root.clone());
+        if p.starts_with(&root) || root.starts_with(&p) {
+            bail!("A watched folder can't be the library itself or contain it");
+        }
+        let ps = p.to_string_lossy().to_string();
+        if self.meta.watched.iter().any(|w| w.path == ps) {
+            bail!("That folder is already watched");
+        }
+        self.meta.watched.push(WatchedFolder { id: new_id(), path: ps, folder_id, enabled: true });
+        self.save_meta()
+    }
+
+    pub fn update_watched(&mut self, id: &str, enabled: bool, folder_id: Option<String>) -> Result<()> {
+        let w = self.meta.watched.iter_mut().find(|w| w.id == id).ok_or_else(|| anyhow!("Watched folder not found"))?;
+        w.enabled = enabled;
+        w.folder_id = folder_id;
+        self.save_meta()
+    }
+
+    pub fn remove_watched(&mut self, id: &str) -> Result<()> {
+        self.meta.watched.retain(|w| w.id != id);
+        self.save_meta()
     }
 
     pub fn file_path(&self, id: &str) -> Result<PathBuf> {
