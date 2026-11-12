@@ -21,6 +21,9 @@ uuid = { version = "1", features = ["v4"] }
 rayon = "1"
 walkdir = "2"
 anyhow = "1"
+tiny_http = "0.12"
+ureq = "2"
+base64 = "0.22"
 
 [profile.release]
 opt-level = 3

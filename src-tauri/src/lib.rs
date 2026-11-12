@@ -1,3 +1,4 @@
+mod api_server;
 mod hashing;
 mod import;
 mod library;
@@ -175,6 +176,16 @@ fn open_item(st: State<AppState>, id: String) -> R<()> {
 }
 
 #[tauri::command]
+fn api_info(st: State<api_server::ApiState>) -> R<api_server::ApiInfo> {
+    st.0.lock().map(|i| i.clone()).map_err(err)
+}
+
+#[tauri::command]
+fn regenerate_api_token(app: AppHandle) -> R<String> {
+    Ok(api_server::regenerate_token(&app))
+}
+
+#[tauri::command]
 fn open_url(url: String) -> R<()> {
     if !(url.starts_with("http://") || url.starts_with("https://")) {
         return Err("Only web links can be opened".into());
@@ -254,6 +265,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
+        .manage(api_server::ApiState::default())
+        .setup(|app| {
+            api_server::start(app.handle().clone());
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             open_last_library,
             create_library,
@@ -277,6 +293,8 @@ pub fn run() {
             reveal_item,
             open_item,
             open_url,
+            api_info,
+            regenerate_api_token,
             import_paths
         ])
         .run(tauri::generate_context!())
