@@ -10,6 +10,8 @@ Built with [Tauri 2](https://tauri.app), Rust and React.
 - **Import anything.** Drag files or whole folders into the window, or use Import. Hidden files are skipped.
 - **Thumbnails for many formats.** Common images are decoded natively; videos get a poster frame with `ffmpeg`; PDFs, PSD, HEIC, SVG, fonts, Office and iWork files use macOS Quick Look.
 - **Organise.** Nested folders (drag items onto folders, drag folders into folders), tags, 1–5 star ratings, notes and source links.
+- **Smart folders.** Save rules (tags, type, size, rating, orientation, colour, date added and more, matching all or any) and matching items collect themselves.
+- **Duplicates.** Exact copies are skipped on import. A review screen finds identical files and resized or re-saved pictures, suggests the best copy to keep, and moves the rest to the Trash while keeping their tags, folders and notes.
 - **Find.** Instant prefix search across names, tags, notes and links; filters for type, tags, rating and colour. Colours are extracted from every item, so you can find "everything blue".
 - **Preview.** Full-window preview with arrow-key navigation, video and audio playback, and PDF viewing.
 - **Trash.** Deleted items can be restored until you empty the Trash.

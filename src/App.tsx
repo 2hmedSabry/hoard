@@ -10,9 +10,10 @@ import Toolbar from "./components/Toolbar";
 import Grid from "./components/Grid";
 import Inspector from "./components/Inspector";
 import Preview from "./components/Preview";
+import Duplicates from "./components/Duplicates";
 
 const DEFAULT_QUERY: Query = {
-  scope: "all", folderId: null, tags: [], kinds: [], minRating: 0, color: null, text: "", sort: "created_desc",
+  scope: "all", folderId: null, smartFolderId: null, tags: [], kinds: [], minRating: 0, color: null, text: "", sort: "created_desc",
 };
 
 function readThumbSize() {
@@ -44,7 +45,7 @@ export default function App() {
     if (!lib) return;
     const n = ++seq.current;
     try {
-      const [list, st] = await Promise.all([api.query(query), api.stats()]);
+      const [list, st] = await Promise.all([query.scope === "duplicates" ? Promise.resolve([]) : api.query(query), api.stats()]);
       if (n !== seq.current) return;
       setItems(list);
       setStats(st);
@@ -63,7 +64,7 @@ export default function App() {
   useEffect(() => { try { localStorage.setItem("thumbSize", String(thumbSize)); } catch { /* ignore */ } }, [thumbSize]);
 
   // Clear selection when switching view.
-  useEffect(() => { setSelected(new Set()); setAnchor(null); }, [query.scope, query.folderId, lib?.root]);
+  useEffect(() => { setSelected(new Set()); setAnchor(null); }, [query.scope, query.folderId, query.smartFolderId, lib?.root]);
 
   const reloadLib = useCallback(async () => { setLib(await api.libraryInfo()); }, []);
 
@@ -153,7 +154,7 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, select, [contenteditable]")) return;
-      if (previewId) return; // Preview handles its own keys.
+      if (previewId || query.scope === "duplicates") return; // Preview and Duplicates handle their own keys.
       if (e.key === " " && selected.size) { e.preventDefault(); setPreviewId([...selected][0]); }
       else if ((e.key === "Backspace" || e.key === "Delete") && selected.size && query.scope !== "trash") { e.preventDefault(); trash([...selected], true); }
       else if (e.key === "a" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setSelected(new Set(items.map((i) => i.id))); }
@@ -182,16 +183,18 @@ export default function App() {
         onEmptyTrash={emptyTrash} fail={fail}
       />
       <main className="main">
+        {query.scope === "duplicates" ? <Duplicates root={lib.root} onChanged={refresh} fail={fail} /> : <>
         <Toolbar query={query} setQuery={setQuery} thumbSize={thumbSize} setThumbSize={setThumbSize}
-          onImport={pickImport} count={items.length} selectedCount={selected.size} folders={lib.meta.folders} />
+          onImport={pickImport} count={items.length} selectedCount={selected.size} folders={lib.meta.folders} smartFolders={lib.meta.smartFolders ?? []} />
         <Grid
           root={lib.root} items={items} selected={selected} thumbSize={thumbSize}
           onSelect={select} onClear={() => setSelected(new Set())}
           onOpen={(id) => setPreviewId(id)} emptyHint={query}
         />
+        </>}
         {progress && (
           <div className="progress">
-            <span>Importing {progress.done} of {progress.total}{progress.failed ? ` · ${progress.failed} failed` : ""}</span>
+            <span>Importing {progress.done} of {progress.total}{progress.skipped ? ` · ${progress.skipped} already in library` : ""}{progress.failed ? ` · ${progress.failed} failed` : ""}</span>
             <div className="bar"><div style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} /></div>
           </div>
         )}

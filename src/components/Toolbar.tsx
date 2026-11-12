@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { flattenFolders } from "../api";
-import type { Folder, Kind, Query, Sort } from "../types";
+import type { Folder, Kind, Query, SmartFolder, Sort } from "../types";
 
 type Props = {
   query: Query; setQuery: (f: (q: Query) => Query) => void; thumbSize: number; setThumbSize: (n: number) => void;
-  onImport: (dirs: boolean) => void; count: number; selectedCount: number; folders: Folder[];
+  onImport: (dirs: boolean) => void; count: number; selectedCount: number; folders: Folder[]; smartFolders: SmartFolder[];
 };
 
 const KINDS: [Kind, string][] = [["image", "Images"], ["video", "Video"], ["audio", "Audio"], ["document", "Docs"], ["font", "Fonts"], ["other", "Other"]];
@@ -14,7 +14,7 @@ const SORTS: [Sort, string][] = [
 ];
 const SWATCHES = ["#e5484d", "#f76b15", "#ffc53d", "#46a758", "#12a594", "#0090ff", "#6e56cf", "#d6409f", "#8d6e63", "#1c1c1c", "#8b8d98", "#ffffff"];
 
-export default function Toolbar({ query, setQuery, thumbSize, setThumbSize, onImport, count, selectedCount, folders }: Props) {
+export default function Toolbar({ query, setQuery, thumbSize, setThumbSize, onImport, count, selectedCount, folders, smartFolders }: Props) {
   const [colorOpen, setColorOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const search = useRef<HTMLInputElement>(null);
@@ -31,7 +31,8 @@ export default function Toolbar({ query, setQuery, thumbSize, setThumbSize, onIm
 
   const toggleKind = (k: Kind) => setQuery((q) => ({ ...q, kinds: q.kinds.includes(k) ? q.kinds.filter((x) => x !== k) : [...q.kinds, k] }));
   const folderName = query.folderId ? flattenFolders(folders).find((x) => x.f.id === query.folderId)?.f.name : null;
-  const title = { all: "All items", uncategorized: "Uncategorized", untagged: "Untagged", trash: "Trash", folder: folderName ?? "Folder" }[query.scope];
+  const smartName = query.smartFolderId ? smartFolders.find((s) => s.id === query.smartFolderId)?.name : null;
+  const title = { all: "All items", uncategorized: "Uncategorized", untagged: "Untagged", trash: "Trash", folder: folderName ?? "Folder", smart: smartName ?? "Smart folder", duplicates: "Duplicates" }[query.scope];
   const filtered = query.tags.length || query.kinds.length || query.minRating || query.color || query.text;
 
   return (

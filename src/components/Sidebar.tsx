@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
 import { api } from "../api";
 import { beginDrag, type DropDetail } from "../drag";
-import type { Folder, LibraryInfo, Query, Scope, Stats } from "../types";
+import type { Folder, LibraryInfo, Query, Rule, Scope, SmartFolder, Stats } from "../types";
+import SmartFolderEditor from "./SmartFolderEditor";
 import InlineEdit from "./InlineEdit";
 
 type Props = {
@@ -28,6 +29,7 @@ export default function Sidebar(p: Props) {
   const [editing, setEditing] = useState<Editing>(null);
   const [menu, setMenu] = useState<string | null>(null);
   const [libMenu, setLibMenu] = useState(false);
+  const [smartEdit, setSmartEdit] = useState<SmartFolder | "new" | null>(null);
   const { open, toggle } = useExpanded();
 
   useEffect(() => {
@@ -36,8 +38,10 @@ export default function Sidebar(p: Props) {
     return () => window.removeEventListener("click", close);
   }, []);
 
-  const go = (scope: Scope, folderId: string | null = null) => setQuery((q) => ({ ...q, scope, folderId }));
-  const active = (scope: Scope, id: string | null = null) => query.scope === scope && (scope !== "folder" || query.folderId === id);
+  const go = (scope: Scope, id: string | null = null) =>
+    setQuery((q) => ({ ...q, scope, folderId: scope === "folder" ? id : null, smartFolderId: scope === "smart" ? id : null }));
+  const active = (scope: Scope, id: string | null = null) =>
+    query.scope === scope && (scope === "folder" ? query.folderId === id : scope === "smart" ? query.smartFolderId === id : true);
 
   const run = async (f: () => Promise<unknown>) => { try { await f(); p.onLibChange(); } catch (e) { fail(e); } };
 
@@ -136,11 +140,38 @@ export default function Sidebar(p: Props) {
           {row("All items", "all", stats?.all, "◫")}
           {row("Uncategorized", "uncategorized", stats?.uncategorized, "◌")}
           {row("Untagged", "untagged", stats?.untagged, "#")}
+          {row("Duplicates", "duplicates", undefined, "⧉")}
           <div className={`nav-row${active("trash") ? " active" : ""}`} onClick={() => go("trash")} role="button">
             <span className="icon">⌫</span><span className="label">Trash</span>
             {active("trash") && !!stats?.trash && <span className="link small" onClick={(e) => { e.stopPropagation(); p.onEmptyTrash(); }}>Empty</span>}
             <span className="count">{stats?.trash}</span>
           </div>
+        </div>
+
+        <div className="section-title">
+          <span>Smart folders</span>
+          <button className="icon-btn" title="New smart folder" onClick={() => setSmartEdit("new")}>＋</button>
+        </div>
+        <div className="section">
+          {lib.meta.smartFolders.map((sf) => (
+            <div key={sf.id} className={`nav-row${active("smart", sf.id) ? " active" : ""}`} onClick={() => go("smart", sf.id)}
+              onDoubleClick={() => setSmartEdit(sf)}>
+              <span className="icon">✦</span><span className="label">{sf.name}</span>
+              <span className="count">{stats?.smart[sf.id] ?? ""}</span>
+              <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === sf.id ? null : sf.id); }}>⋯</span>
+              {menu === sf.id && (
+                <div className="menu" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => { setMenu(null); setSmartEdit(sf); }}>Edit rules…</button>
+                  <button className="danger" onClick={async () => {
+                    setMenu(null);
+                    const ok = await ask(`Delete the smart folder "${sf.name}"? No items are deleted.`, { title: "Delete smart folder", kind: "warning", okLabel: "Delete" });
+                    if (ok) { if (active("smart", sf.id)) go("all"); run(() => api.deleteSmartFolder(sf.id)); }
+                  }}>Delete</button>
+                </div>
+              )}
+            </div>
+          ))}
+          {!lib.meta.smartFolders.length && <p className="muted small pad">Smart folders collect items by rules, like “5 stars and tagged logo”.</p>}
         </div>
 
         <div className="section-title" data-drop="__top">
@@ -181,6 +212,18 @@ export default function Sidebar(p: Props) {
           {!stats?.tags.length && <p className="muted small pad">Tags you add to items show up here.</p>}
         </div>
       </div>
+      {smartEdit && (
+        <SmartFolderEditor
+          initial={smartEdit === "new" ? null : smartEdit} folders={lib.meta.folders}
+          onClose={() => setSmartEdit(null)}
+          onSave={(name: string, mode: string, rules: Rule[]) => {
+            const editing = smartEdit;
+            setSmartEdit(null);
+            if (editing === "new") run(async () => { const sf = await api.createSmartFolder(name, mode, rules); go("smart", sf.id); });
+            else if (editing) run(() => api.updateSmartFolder(editing.id, name, mode, rules));
+          }}
+        />
+      )}
     </aside>
   );
 }
