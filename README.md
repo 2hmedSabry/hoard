@@ -18,7 +18,7 @@ Built with [Tauri 2](https://tauri.app), Rust and React.
 - **Packs and export.** Share items as a `.hoardpack` (files plus tags, ratings, notes and links) and import packs from the menu or by dropping them in. Copy originals out to any folder with tidy names.
 - **Area comments.** In the preview, drag a box on a picture and pin a comment to it. Comments are searchable and can drive smart folders.
 - **Find.** Instant prefix search across names, tags, notes and links; filters for type, tags, rating and colour. Colours are extracted from every item, so you can find "everything blue".
-- **Preview.** Full-window preview with arrow-key navigation, video and audio playback, and PDF viewing.
+- **Preview.** Full-window preview with arrow-key navigation and a slideshow (P). Videos play; audio shows a waveform you can click to seek; fonts show an editable sample at several sizes with Latin and Arabic glyphs; PDFs, text, Markdown, CSV and JSON open inline.
 - **Trash.** Deleted items can be restored until you empty the Trash.
 
 ## Requirements

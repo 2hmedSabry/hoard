@@ -394,3 +394,16 @@ input, textarea, select { padding: 4px 8px; border-radius: 6px; }
 .anno-list { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
 .anno-list li { cursor: pointer; }
 .anno-list li:hover { color: var(--accent); }
+
+.font-view { width: min(1000px, 100%); max-height: 100%; overflow: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px 22px; display: flex; flex-direction: column; gap: 16px; text-align: start; }
+.font-tools { display: flex; gap: 10px; align-items: center; font-family: -apple-system, system-ui; }
+.font-tools input[type="range"] { width: 160px; }
+.font-sample { line-height: 1.15; word-break: break-word; }
+.font-glyphs { font-size: 22px; line-height: 1.5; color: var(--muted); }
+.font-line { display: flex; gap: 12px; align-items: baseline; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.font-line .muted { font: 11px -apple-system, system-ui; width: 22px; flex: none; }
+.audio-view { width: min(900px, 100%); display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.audio-cover { max-height: 36vh; border-radius: 10px; }
+.wave { width: 100%; height: 140px; cursor: pointer; }
+.audio-view audio { width: 100%; }
+.text-view { width: min(1000px, 100%); max-height: 100%; overflow: auto; margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 20px; font: 12.5px/1.55 ui-monospace, Menlo, monospace; white-space: pre-wrap; word-break: break-word; -webkit-user-select: text; user-select: text; text-align: start; }
