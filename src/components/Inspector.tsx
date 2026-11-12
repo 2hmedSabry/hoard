@@ -96,7 +96,7 @@ export default function Inspector(p: Props) {
           <p className="muted">{tr("Select an item to see and edit its details.")}</p>
           <ul className="muted small tips">
             <li>{tr("Space — preview")}</li><li>{tr("⌘A — select all")}</li><li>{tr("Delete — move to Trash")}</li>
-            <li>{tr("⌘F — search")}</li><li>{tr("Drag items onto a folder to file them")}</li>
+            <li>{tr("⌘F — search")}</li><li>{tr("⌘K — go to folder or tag")}</li><li>{tr("Drag items onto a folder to file them")}</li>
           </ul>
         </div>
       </aside>

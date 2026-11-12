@@ -103,7 +103,7 @@ impl Library {
             bail!("A library named \"{clean}\" already exists in that folder");
         }
         fs::create_dir_all(root.join("items"))?;
-        let meta = LibraryMeta { name: clean, version: 1, folders: vec![], smart_folders: vec![], watched: vec![], created_at: now_ms() };
+        let meta = LibraryMeta { name: clean, version: 1, folders: vec![], smart_folders: vec![], watched: vec![], tag_groups: vec![], created_at: now_ms() };
         write_json(&root.join("library.json"), &meta)?;
         Self::open(&root)
     }
@@ -359,7 +359,7 @@ impl Library {
         if name.is_empty() {
             bail!("Folder name is empty");
         }
-        let f = Folder { id: new_id(), name: name.into(), children: vec![] };
+        let f = Folder { id: new_id(), name: name.into(), color: None, children: vec![] };
         match parent {
             Some(pid) => find_folder_mut(&mut self.meta.folders, pid)
                 .ok_or_else(|| anyhow!("Parent folder not found"))?
@@ -413,6 +413,15 @@ impl Library {
 
     pub fn rename_tag(&mut self, from: &str, to: &str) -> Result<()> {
         let ids = self.ids_where("SELECT item_id FROM item_tags WHERE tag=?1", from)?;
+        // Keep the tag in its group under its new name.
+        let to_name = to.trim().to_string();
+        for g in &mut self.meta.tag_groups {
+            if let Some(t) = g.tags.iter_mut().find(|t| *t == from) {
+                *t = to_name.clone();
+            }
+            g.tags.retain(|t| !t.is_empty());
+        }
+        self.save_meta()?;
         // Remove first, then add, so a rename that only changes letter case works.
         // An empty new name deletes the tag.
         self.update_items(&ids, &ItemPatch { remove_tags: vec![from.into()], ..Default::default() })?;
@@ -575,6 +584,49 @@ impl Library {
             .collect();
         out.sort_by(|a, b| b.items.len().cmp(&a.items.len()).then(b.items[0].created_at.cmp(&a.items[0].created_at)));
         Ok(out)
+    }
+
+    pub fn set_folder_color(&mut self, id: &str, color: Option<String>) -> Result<()> {
+        let f = find_folder_mut(&mut self.meta.folders, id).ok_or_else(|| anyhow!("Folder not found"))?;
+        f.color = color.filter(|c| c.starts_with('#') && c.len() <= 9);
+        self.save_meta()
+    }
+
+    /// Creates, renames or recolours a tag group (empty id creates one).
+    pub fn save_tag_group(&mut self, id: &str, name: &str, color: Option<String>) -> Result<TagGroup> {
+        let name = name.trim();
+        if name.is_empty() {
+            bail!("Group name is empty");
+        }
+        if let Some(g) = self.meta.tag_groups.iter_mut().find(|g| g.id == id) {
+            g.name = name.into();
+            g.color = color;
+            let g = g.clone();
+            self.save_meta()?;
+            return Ok(g);
+        }
+        let g = TagGroup { id: new_id(), name: name.into(), color, tags: vec![] };
+        self.meta.tag_groups.push(g.clone());
+        self.save_meta()?;
+        Ok(g)
+    }
+
+    pub fn delete_tag_group(&mut self, id: &str) -> Result<()> {
+        self.meta.tag_groups.retain(|g| g.id != id);
+        self.save_meta()
+    }
+
+    /// Puts a tag in a group (or in none). A tag belongs to at most one group.
+    pub fn set_tag_group(&mut self, tag: &str, group_id: Option<&str>) -> Result<()> {
+        for g in &mut self.meta.tag_groups {
+            g.tags.retain(|t| t != tag);
+        }
+        if let Some(gid) = group_id {
+            let g = self.meta.tag_groups.iter_mut().find(|g| g.id == gid).ok_or_else(|| anyhow!("Group not found"))?;
+            g.tags.push(tag.to_string());
+            g.tags.sort_by_key(|t| t.to_lowercase());
+        }
+        self.save_meta()
     }
 
     pub fn add_watched(&mut self, path: &str, folder_id: Option<String>) -> Result<()> {

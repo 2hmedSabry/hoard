@@ -23,7 +23,7 @@ export default function Toolbar({ query, setQuery, thumbSize, setThumbSize, onIm
   useEffect(() => {
     const close = () => { setColorOpen(false); setImportOpen(false); };
     const key = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && (e.key === "f" || e.key === "k")) { e.preventDefault(); search.current?.focus(); search.current?.select(); }
+      if ((e.metaKey || e.ctrlKey) && e.key === "f") { e.preventDefault(); search.current?.focus(); search.current?.select(); }
     };
     window.addEventListener("click", close);
     window.addEventListener("keydown", key);

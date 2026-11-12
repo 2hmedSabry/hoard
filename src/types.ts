@@ -12,8 +12,9 @@ export type Rule = { field: string; op: string; value: string };
 export type SmartFolder = { id: string; name: string; matchMode: "all" | "any"; rules: Rule[] };
 export type WatchedFolder = { id: string; path: string; folderId: string | null; enabled: boolean };
 export type DupGroup = { reason: "exact" | "similar"; items: Item[] };
-export type Folder = { id: string; name: string; children: Folder[] };
-export type LibraryInfo = { root: string; meta: { name: string; version: number; folders: Folder[]; smartFolders: SmartFolder[]; watched: WatchedFolder[]; createdAt: number } };
+export type Folder = { id: string; name: string; color?: string | null; children: Folder[] };
+export type TagGroup = { id: string; name: string; color: string | null; tags: string[] };
+export type LibraryInfo = { root: string; meta: { name: string; version: number; folders: Folder[]; smartFolders: SmartFolder[]; watched: WatchedFolder[]; tagGroups: TagGroup[]; createdAt: number } };
 export type Stats = {
   all: number; uncategorized: number; untagged: number; trash: number;
   folders: Record<string, number>; smart: Record<string, number>; aiPending: number; tags: [string, number][];

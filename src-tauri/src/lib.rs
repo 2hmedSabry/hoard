@@ -361,6 +361,26 @@ async fn import_pack(app: AppHandle, path: String) -> R<(usize, usize)> {
 }
 
 #[tauri::command]
+fn set_folder_color(st: State<AppState>, id: String, color: Option<String>) -> R<()> {
+    with_lib(&st, |l| l.set_folder_color(&id, color))
+}
+
+#[tauri::command]
+fn save_tag_group(st: State<AppState>, id: String, name: String, color: Option<String>) -> R<TagGroup> {
+    with_lib(&st, |l| l.save_tag_group(&id, &name, color))
+}
+
+#[tauri::command]
+fn delete_tag_group(st: State<AppState>, id: String) -> R<()> {
+    with_lib(&st, |l| l.delete_tag_group(&id))
+}
+
+#[tauri::command]
+fn set_tag_group(st: State<AppState>, tag: String, group_id: Option<String>) -> R<()> {
+    with_lib(&st, |l| l.set_tag_group(&tag, group_id.as_deref()))
+}
+
+#[tauri::command]
 fn add_watched_folder(st: State<AppState>, path: String, folder_id: Option<String>) -> R<()> {
     with_lib(&st, |l| l.add_watched(&path, folder_id))
 }
@@ -420,6 +440,10 @@ pub fn run() {
             regenerate_api_token,
             import_paths,
             add_watched_folder,
+            set_folder_color,
+            save_tag_group,
+            delete_tag_group,
+            set_tag_group,
             rename_items,
             similar_items,
             set_annotations,
@@ -549,6 +573,14 @@ mod tests {
         assert_eq!(it.annotations.len(), 1, "empty comments dropped");
         assert!((it.annotations[0].w - 0.9).abs() < 1e-6, "box kept inside the image");
         assert_eq!(q(&lib, |q| q.text = Some("wave".into()))[0].id, blue);
+
+        // Tag groups follow tag renames; folder colours are kept.
+        let g = lib.save_tag_group("", "Moods", Some("#ff6a3d".into())).unwrap();
+        lib.set_tag_group("red", Some(&g.id)).unwrap();
+        lib.rename_tag("red", "warm").unwrap();
+        assert_eq!(lib.meta.tag_groups[0].tags, vec!["warm".to_string()]);
+        lib.set_tag_group("warm", None).unwrap();
+        assert!(lib.meta.tag_groups[0].tags.is_empty());
 
         // Index is disposable: delete it and reopen.
         let root = lib.root.clone();

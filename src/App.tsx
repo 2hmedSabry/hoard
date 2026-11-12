@@ -12,6 +12,7 @@ import Grid from "./components/Grid";
 import Inspector from "./components/Inspector";
 import Preview from "./components/Preview";
 import Duplicates from "./components/Duplicates";
+import QuickSwitch from "./components/QuickSwitch";
 import PluginHost, { type PluginInfo } from "./components/PluginHost";
 
 const DEFAULT_QUERY: Query = {
@@ -37,6 +38,7 @@ export default function App() {
   const [dropping, setDropping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [switching, setSwitching] = useState(false);
   const [plugin, setPlugin] = useState<{ info: PluginInfo; html: string } | null>(null);
   useEffect(() => { if (!notice) return; const t = setTimeout(() => setNotice(null), 3500); return () => clearTimeout(t); }, [notice]);
   const seq = useRef(0);
@@ -166,6 +168,7 @@ export default function App() {
   // Keyboard shortcuts for the grid.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setSwitching(true); return; }
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, select, [contenteditable]")) return;
       if (previewId || query.scope === "duplicates") return; // Preview and Duplicates handle their own keys.
@@ -229,6 +232,7 @@ export default function App() {
           onClose={() => setPreviewId(null)} fail={fail}
           onItemChanged={(it) => { setItems((list) => list.map((i) => (i.id === it.id ? it : i))); }} />
       )}
+      {switching && <QuickSwitch lib={lib} stats={stats} setQuery={setQuery} onClose={() => setSwitching(false)} />}
       {plugin && (
         <PluginHost plugin={plugin.info} html={plugin.html} root={lib.root} selected={selectedItems}
           onChanged={refresh} onNotice={setNotice} onClose={() => setPlugin(null)} />

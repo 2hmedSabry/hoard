@@ -82,6 +82,8 @@ pub struct Annotation {
 pub struct Folder {
     pub id: String,
     pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
     #[serde(default)]
     pub children: Vec<Folder>,
 }
@@ -115,6 +117,18 @@ fn yes() -> bool {
     true
 }
 
+/// A named, coloured set of tags shown together in the sidebar.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TagGroup {
+    pub id: String,
+    pub name: String,
+    #[serde(default)]
+    pub color: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
+
 /// A folder on disk whose new files are imported automatically.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -139,6 +153,8 @@ pub struct LibraryMeta {
     pub smart_folders: Vec<SmartFolder>,
     #[serde(default)]
     pub watched: Vec<WatchedFolder>,
+    #[serde(default)]
+    pub tag_groups: Vec<TagGroup>,
     pub created_at: i64,
 }
 

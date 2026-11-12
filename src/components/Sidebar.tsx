@@ -19,7 +19,7 @@ type Props = {
   onOpenPlugin: (p: PluginInfo) => void;
 };
 
-type Editing = { kind: "new"; parent: string | null } | { kind: "rename"; id: string } | { kind: "tag"; tag: string } | { kind: "library" } | null;
+type Editing = { kind: "new"; parent: string | null } | { kind: "rename"; id: string } | { kind: "tag"; tag: string } | { kind: "group"; id: string } | { kind: "library" } | null;
 
 function useExpanded() {
   const [open, setOpen] = useState<Set<string>>(() => {
@@ -79,6 +79,45 @@ export default function Sidebar(p: Props) {
     return () => window.removeEventListener("hoard-drop", h);
   });
 
+  const COLORS = ["#e5484d", "#f76b15", "#ffc53d", "#46a758", "#12a594", "#0090ff", "#6e56cf", "#d6409f", "#8b8d98"];
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const toggleGroup = (id: string) => setCollapsed((c) => { const n = new Set(c); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const grouped = new Set((lib.meta.tagGroups ?? []).flatMap((g) => g.tags));
+  const ungrouped = (stats?.tags ?? []).filter(([t]) => !grouped.has(t));
+
+  const tagRow = (t: string, n: number, color?: string) => (
+    <div key={t} className={`nav-row tag-row${query.tags.includes(t) ? " active" : ""}`}
+      onClick={() => setQuery((q) => ({ ...q, tags: q.tags.includes(t) ? q.tags.filter((x) => x !== t) : [...q.tags, t] }))}
+      onDoubleClick={() => setEditing({ kind: "tag", tag: t })}>
+      <span className="icon" style={color ? { color } : undefined}>#</span>
+      {editing?.kind === "tag" && editing.tag === t ? (
+        <InlineEdit initial={t} onDone={(v) => {
+          setEditing(null);
+          if (v && v !== t) run(() => api.renameTag(t, v)).then(() => setQuery((q) => ({ ...q, tags: q.tags.map((x) => (x === t ? v : x)) })));
+        }} />
+      ) : <span className="label">{t}</span>}
+      <span className="count">{n}</span>
+      <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === "tag:" + t ? null : "tag:" + t); }}>⋯</span>
+      {menu === "tag:" + t && (
+        <div className="menu" onClick={(e) => e.stopPropagation()}>
+          {(lib.meta.tagGroups ?? []).length > 0 && <div className="menu-label">{tr("Move to group")}</div>}
+          {(lib.meta.tagGroups ?? []).map((g) => (
+            <button key={g.id} onClick={() => { setMenu(null); run(() => api.setTagGroup(t, g.id)); }}>
+              <span className="dot" style={{ background: g.color ?? "var(--muted)" }} /> {g.name}
+            </button>
+          ))}
+          {grouped.has(t) && <button onClick={() => { setMenu(null); run(() => api.setTagGroup(t, null)); }}>{tr("Remove from group")}</button>}
+          <button onClick={() => { setMenu(null); setEditing({ kind: "tag", tag: t }); }}>{tr("Rename")}</button>
+          <button className="danger" onClick={async () => {
+            setMenu(null);
+            const ok = await ask(tr("Remove the tag “{tag}” from {n} items?", { tag: t, n }), { title: tr("Delete tag"), kind: "warning", okLabel: tr("Remove"), cancelLabel: tr("Cancel") });
+            if (ok) run(() => api.renameTag(t, "")).then(() => setQuery((q) => ({ ...q, tags: q.tags.filter((x) => x !== t) })));
+          }}>{tr("Delete tag")}</button>
+        </div>
+      )}
+    </div>
+  );
+
   const row = (label: string, scope: Scope, count?: number, icon?: string) => (
     <button className={`nav-row${active(scope) ? " active" : ""}`} onClick={() => go(scope)}>
       <span className="icon">{icon}</span><span className="label">{tr(label)}</span>
@@ -99,7 +138,7 @@ export default function Sidebar(p: Props) {
         >
           <span className={`twisty${f.children.length ? "" : " empty"}${isOpen ? " open" : ""}`}
             onClick={(e) => { e.stopPropagation(); toggle(f.id); }}>▸</span>
-          <span className="icon">▢</span>
+          <span className="icon folder-icon" style={f.color ? { color: f.color } : undefined}>{f.color ? "■" : "▢"}</span>
           {editing?.kind === "rename" && editing.id === f.id ? (
             <InlineEdit initial={f.name} onDone={(v) => { setEditing(null); if (v && v !== f.name) run(() => api.renameFolder(f.id, v)); }} />
           ) : <span className="label">{f.name}</span>}
@@ -109,6 +148,10 @@ export default function Sidebar(p: Props) {
             <div className="menu" onClick={(e) => e.stopPropagation()}>
               <button onClick={() => { setMenu(null); toggle(f.id, true); setEditing({ kind: "new", parent: f.id }); }}>{tr("New subfolder")}</button>
               <button onClick={() => { setMenu(null); setEditing({ kind: "rename", id: f.id }); }}>{tr("Rename")}</button>
+              <div className="swatch-row">
+                {COLORS.map((c) => <button key={c} className="swatch" style={{ background: c }} onClick={() => { setMenu(null); run(() => api.setFolderColor(f.id, c)); }} />)}
+                {f.color && <button className="swatch none" title={tr("No colour")} onClick={() => { setMenu(null); run(() => api.setFolderColor(f.id, null)); }}>×</button>}
+              </div>
               {depth > 0 && <button onClick={() => { setMenu(null); run(() => api.moveFolder(f.id, null)); }}>{tr("Move to top level")}</button>}
               <button className="danger" onClick={async () => {
                 setMenu(null);
@@ -225,27 +268,41 @@ export default function Sidebar(p: Props) {
           {!lib.meta.folders.length && editing?.kind !== "new" && <p className="muted small pad">{tr("No folders yet. Drag items onto a folder to file them.")}</p>}
         </div>
 
-        <div className="section-title"><span>{tr("Tags")}</span></div>
+        <div className="section-title">
+          <span>{tr("Tags")}</span>
+          <button className="icon-btn" title={tr("New tag group")} onClick={() => setEditing({ kind: "group", id: "" })}>＋</button>
+        </div>
         <div className="section tag-list">
-          {stats?.tags.map(([t, n]) => (
-            <div key={t} className={`nav-row tag-row${query.tags.includes(t) ? " active" : ""}`}
-              onClick={() => setQuery((q) => ({ ...q, tags: q.tags.includes(t) ? q.tags.filter((x) => x !== t) : [...q.tags, t] }))}
-              onDoubleClick={() => setEditing({ kind: "tag", tag: t })}>
-              <span className="icon">#</span>
-              {editing?.kind === "tag" && editing.tag === t ? (
-                <InlineEdit initial={t} onDone={(v) => {
-                  setEditing(null);
-                  if (v && v !== t) run(() => api.renameTag(t, v)).then(() => setQuery((q) => ({ ...q, tags: q.tags.map((x) => (x === t ? v : x)) })));
-                }} />
-              ) : <span className="label">{t}</span>}
-              <span className="count">{n}</span>
-              <span className="more" title={tr("Delete tag")} onClick={async (e) => {
-                e.stopPropagation();
-                const ok = await ask(tr("Remove the tag “{tag}” from {n} items?", { tag: t, n }), { title: tr("Delete tag"), kind: "warning", okLabel: tr("Remove"), cancelLabel: tr("Cancel") });
-                if (ok) run(() => api.renameTag(t, "")).then(() => setQuery((q) => ({ ...q, tags: q.tags.filter((x) => x !== t) })));
-              }}>×</span>
-            </div>
-          ))}
+          {editing?.kind === "group" && editing.id === "" && (
+            <div className="nav-row"><InlineEdit initial="" placeholder={tr("Group name")} onDone={(v) => { setEditing(null); if (v) run(() => api.saveTagGroup("", v, null)); }} /></div>
+          )}
+          {(lib.meta.tagGroups ?? []).map((g) => {
+            const inGroup = (stats?.tags ?? []).filter(([t]) => g.tags.includes(t));
+            const open = !collapsed.has(g.id);
+            return (
+              <div key={g.id} className="tag-group">
+                <div className="nav-row group-row" onClick={() => toggleGroup(g.id)}>
+                  <span className={`twisty${open ? " open" : ""}`}>▸</span>
+                  <span className="dot" style={{ background: g.color ?? "var(--muted)" }} />
+                  {editing?.kind === "group" && editing.id === g.id
+                    ? <InlineEdit initial={g.name} onDone={(v) => { setEditing(null); if (v && v !== g.name) run(() => api.saveTagGroup(g.id, v, g.color ?? null)); }} />
+                    : <span className="label">{g.name}</span>}
+                  <span className="count">{inGroup.length}</span>
+                  <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === "group:" + g.id ? null : "group:" + g.id); }}>⋯</span>
+                  {menu === "group:" + g.id && (
+                    <div className="menu" onClick={(e) => e.stopPropagation()}>
+                      <div className="swatch-row">{COLORS.map((c) => <button key={c} className="swatch" style={{ background: c }} onClick={() => { setMenu(null); run(() => api.saveTagGroup(g.id, g.name, c)); }} />)}</div>
+                      <button onClick={() => { setMenu(null); setEditing({ kind: "group", id: g.id }); }}>{tr("Rename")}</button>
+                      <button className="danger" onClick={() => { setMenu(null); run(() => api.deleteTagGroup(g.id)); }}>{tr("Delete group (keeps tags)")}</button>
+                    </div>
+                  )}
+                </div>
+                {open && inGroup.map(([t, n]) => tagRow(t, n, g.color ?? undefined))}
+              </div>
+            );
+          })}
+          {(lib.meta.tagGroups ?? []).length > 0 && ungrouped.length > 0 && <div className="sub-title">{tr("Other tags")}</div>}
+          {ungrouped.map(([t, n]) => tagRow(t, n))}
           {!stats?.tags.length && <p className="muted small pad">{tr("Tags you add to items show up here.")}</p>}
         </div>
 
