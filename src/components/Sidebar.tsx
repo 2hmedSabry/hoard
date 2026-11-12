@@ -5,6 +5,7 @@ import { beginDrag, type DropDetail } from "../drag";
 import type { Folder, LibraryInfo, Query, Rule, Scope, SmartFolder, Stats } from "../types";
 import SmartFolderEditor from "./SmartFolderEditor";
 import BrowserConnect from "./BrowserConnect";
+import { getTheme, setTheme, type ThemePref } from "../theme";
 import InlineEdit from "./InlineEdit";
 
 type Props = {
@@ -31,6 +32,7 @@ export default function Sidebar(p: Props) {
   const [menu, setMenu] = useState<string | null>(null);
   const [libMenu, setLibMenu] = useState(false);
   const [connect, setConnect] = useState(false);
+  const [theme, setThemeState] = useState<ThemePref>(getTheme);
   const [smartEdit, setSmartEdit] = useState<SmartFolder | "new" | null>(null);
   const { open, toggle } = useExpanded();
 
@@ -134,6 +136,14 @@ export default function Sidebar(p: Props) {
             <button onClick={() => { setLibMenu(false); setEditing({ kind: "library" }); }}>New library…</button>
             <button onClick={() => { setLibMenu(false); run(async () => { await api.rebuildIndex(); }); }}>Rebuild search index</button>
             <button onClick={() => { setLibMenu(false); setConnect(true); }}>Browser extension…</button>
+            <div className="menu-label">Appearance</div>
+            <div className="theme-switch">
+              {(["dark", "light", "system"] as ThemePref[]).map((t) => (
+                <button key={t} className={theme === t ? "on" : ""} onClick={() => { setTheme(t); setThemeState(t); }}>
+                  {t[0].toUpperCase() + t.slice(1)}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>
