@@ -83,7 +83,10 @@ pub fn start(app: AppHandle) {
             // Quiet moment: fill in camera details for items imported before they existed.
             let st = app.state::<AppState>();
             let filled = match st.lib.lock() {
-                Ok(mut g) => g.as_mut().map(|lib| lib.backfill_exif(50).map(|n| n > 0).unwrap_or(false)).unwrap_or(false),
+                Ok(mut g) => g
+                    .as_mut()
+                    .map(|lib| lib.backfill_exif(50).map(|n| n > 0).unwrap_or(false) || lib.backfill_bpm(4).map(|n| n > 0).unwrap_or(false))
+                    .unwrap_or(false),
                 Err(_) => false,
             };
             worked = filled;

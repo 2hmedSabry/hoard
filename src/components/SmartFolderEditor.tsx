@@ -23,6 +23,7 @@ export const FIELDS: Record<string, Field> = {
   orientation: { label: "Orientation", ops: [["is", "is"]], input: "orientation" },
   size: { label: "File size", ops: NUM_OPS, input: "number", unit: "MB" },
   duration: { label: "Length", ops: NUM_OPS, input: "number", unit: "seconds" },
+  bpm: { label: "Tempo", ops: NUM_OPS, input: "number", unit: "BPM" },
   created: { label: "Date added", ops: DATE_OPS, input: "days", unit: "days" },
   modified: { label: "Date edited", ops: DATE_OPS, input: "days", unit: "days" },
   camera: { label: "Camera or lens", ops: [["contains", "contains"], ["not_contains", "doesn't contain"], ["is", "is"]], input: "text" },

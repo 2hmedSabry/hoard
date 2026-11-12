@@ -5,7 +5,7 @@ export type Item = {
   width: number; height: number; tags: string[]; folders: string[]; rating: number;
   note: string; url: string; palette: Swatch[]; createdAt: number; modifiedAt: number;
   deleted: boolean; thumb: string | null; duration: number | null;
-  camera?: CameraInfo | null;
+  camera?: CameraInfo | null; bpm?: number | null;
   fhash?: string; dhash?: string; annotations?: Annotation[]; labels?: string[]; ocr?: string; analyzed?: boolean;
 };
 export type CameraInfo = { camera: string | null; lens: string | null; takenAt: number | null; exposure: string | null; aperture: string | null; iso: string | null; focalLength: string | null };

@@ -9,6 +9,7 @@ mod pack;
 mod palette;
 mod plugins;
 mod rules;
+mod tempo;
 mod watch;
 
 use library::Library;
@@ -576,8 +577,8 @@ mod tests {
         let either = lib.create_smart_folder("Video or audio", "any", vec![rule("kind", "is", "video"), rule("kind", "is", "audio")]).unwrap();
         fn names(lib: &Library, id: &str) -> Vec<String> { let mut v: Vec<String> = q(lib, |q| { q.scope = "smart".into(); q.smart_folder_id = Some(id.into()) }).into_iter().map(|i| i.name).collect(); v.sort(); v }
         assert_eq!(names(&lib, &big.id), vec!["Blue Ocean", "pattern"]);
-        assert_eq!(names(&lib, &either.id), vec!["clip", "tone"]);
-        assert_eq!(lib.stats().unwrap().smart[&either.id], 2);
+        assert_eq!(names(&lib, &either.id), vec!["beat120", "clip", "tone"]);
+        assert_eq!(lib.stats().unwrap().smart[&either.id], 3);
         lib.update_smart_folder(&big.id, "Landscape", "all", vec![rule("orientation", "is", "landscape"), rule("name", "contains", "pattern")]).unwrap();
         assert_eq!(names(&lib, &big.id), vec!["pattern", "pattern-small"]);
         lib.delete_smart_folder(&either.id).unwrap();
@@ -666,6 +667,11 @@ mod tests {
         assert_eq!(q(&lib, |q| q.text = Some("写真".into()))[0].id, cjk, "Japanese inside a tag");
         assert_eq!(q(&lib, |q| q.text = Some("日落 blue".into()))[0].id, cjk, "mixed with Latin words");
         assert!(q(&lib, |q| q.text = Some("山".into())).is_empty());
+
+        // Audio gets a tempo estimate on import.
+        let beat = q(&lib, |q| q.text = Some("beat120".into()));
+        let bpm = beat[0].bpm.expect("tempo detected");
+        assert!((bpm - 120.0).abs() < 3.0, "click track at 120 BPM, got {bpm}");
 
         // Index is disposable: delete it and reopen.
         let root = lib.root.clone();

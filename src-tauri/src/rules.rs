@@ -102,6 +102,7 @@ pub fn eval(rule: &Rule, it: &Item, meta: &LibraryMeta, now: i64) -> bool {
         "height" => num_op(it.height as f64, &rule.op, v),
         "size" => num_op(it.size as f64 / 1_048_576.0, &rule.op, v),
         "duration" => it.duration.map(|d| num_op(d, &rule.op, v)).unwrap_or(false),
+        "bpm" => it.bpm.map(|b| num_op(b as f64, &rule.op, v)).unwrap_or(false),
         "orientation" => {
             if it.width == 0 || it.height == 0 {
                 return false;

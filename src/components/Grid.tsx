@@ -38,7 +38,7 @@ const Tile = memo(function Tile({ root, item, size, selected, selectedIds, onSel
       </div>
       <div className="tile-name" title={item.name}>{item.name}</div>
       <div className="tile-meta">
-        {item.width ? `${item.width}×${item.height}` : item.ext.toUpperCase()}
+        {item.width ? `${item.width}×${item.height}` : item.bpm ? `${item.ext.toUpperCase()} · ${Math.round(item.bpm)} BPM` : item.ext.toUpperCase()}
         {item.rating ? <span className="tile-stars">{"★".repeat(item.rating)}</span> : null}
       </div>
     </div>

@@ -278,6 +278,8 @@ const ar: Record<string, string> = {
   "⌘A — select all": "⌘A — تحديد الكل",
   "⌘F — search": "⌘F — بحث",
   "Language": "اللغة",
+  "Tempo": "الإيقاع",
+  "BPM": "نبضة/دقيقة",
   "Keyboard shortcuts": "اختصارات لوحة المفاتيح",
   "Keyboard shortcuts…": "اختصارات لوحة المفاتيح…",
   "Click a shortcut, then press the new keys. Esc cancels.": "اضغط على اختصار ثم اضغط المفاتيح الجديدة. Esc للإلغاء.",

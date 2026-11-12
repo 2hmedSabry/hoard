@@ -810,6 +810,27 @@ impl Library {
         Ok(n)
     }
 
+    /// Estimates tempo for older audio items, a few at a time.
+    pub fn backfill_bpm(&mut self, limit: usize) -> Result<usize> {
+        let ids: Vec<String> = {
+            let mut st = self.db.prepare(
+                "SELECT id FROM items WHERE kind='audio' AND coalesce(json_extract(json,'$.bpmRead'),0)=0 LIMIT ?1",
+            )?;
+            let rows = st.query_map([limit as i64], |r| r.get::<_, String>(0))?;
+            rows.collect::<std::result::Result<_, _>>()?
+        };
+        let mut changed = vec![];
+        for id in ids {
+            let mut it = self.get(&id)?;
+            it.bpm = crate::tempo::detect(&self.item_dir(&id).join(&it.file_name));
+            it.bpm_read = true;
+            changed.push(it);
+        }
+        let n = changed.len();
+        self.save_items(&changed)?;
+        Ok(n)
+    }
+
     /// Saves analysis results without touching the "edited" date.
     pub fn save_analysis(&mut self, items: &[Item]) -> Result<()> {
         self.save_items(items)

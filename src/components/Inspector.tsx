@@ -229,6 +229,7 @@ export default function Inspector(p: Props) {
           {one.width > 0 && <><dt>{tr("Size")}</dt><dd>{one.width} × {one.height}</dd></>}
           {one.duration != null && <><dt>{tr("Length")}</dt><dd>{formatDuration(one.duration)}</dd></>}
           <dt>{tr("File size")}</dt><dd>{formatSize(one.size)}</dd>
+          {one.bpm != null && <><dt>{tr("Tempo")}</dt><dd>{Math.round(one.bpm)} BPM</dd></>}
           {one.camera?.camera && <><dt>{tr("Camera")}</dt><dd>{one.camera.camera}</dd></>}
           {one.camera?.lens && <><dt>{tr("Lens")}</dt><dd>{one.camera.lens}</dd></>}
           {(one.camera?.exposure || one.camera?.aperture || one.camera?.iso || one.camera?.focalLength) && <>

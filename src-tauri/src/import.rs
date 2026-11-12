@@ -110,12 +110,18 @@ pub fn import_file(items_dir: &Path, src: &Path, folder: Option<&str>, seen: &Mu
             annotations: vec![],
             camera: None,
             exif_read: false,
+            bpm: None,
+            bpm_read: false,
             labels: vec![],
             ocr: String::new(),
             analyzed: false,
             fhash: Some(fhash.clone()),
             dhash: None,
         };
+        if item.kind == "audio" {
+            item.bpm = crate::tempo::detect(&dst);
+            item.bpm_read = true;
+        }
         if item.kind == "image" {
             item.camera = crate::exif_info::read(&dst);
             item.exif_read = true;
@@ -195,7 +201,7 @@ fn decode_oriented(file: &Path) -> Option<DynamicImage> {
 }
 
 /// Finds a command-line tool even when the app is started from Finder (no shell PATH).
-fn tool(name: &str) -> Option<PathBuf> {
+pub fn tool(name: &str) -> Option<PathBuf> {
     for dir in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"] {
         let p = Path::new(dir).join(name);
         if p.exists() {

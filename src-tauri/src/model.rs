@@ -56,6 +56,11 @@ pub struct Item {
     pub camera: Option<CameraInfo>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub exif_read: bool,
+    /// Estimated tempo of audio files.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bpm: Option<f32>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub bpm_read: bool,
     /// Comments pinned to areas of the picture.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub annotations: Vec<Annotation>,
