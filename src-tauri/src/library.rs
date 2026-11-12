@@ -31,14 +31,14 @@ pub struct Library {
     unlocked: HashSet<String>,
 }
 
-fn hash_password(pw: &str) -> Result<String> {
+pub fn hash_password(pw: &str) -> Result<String> {
     use argon2::password_hash::{PasswordHasher, SaltString};
     // 16 random bytes from a v4 UUID (OS randomness).
     let salt = SaltString::encode_b64(uuid::Uuid::new_v4().as_bytes()).map_err(|e| anyhow!("{e}"))?;
     Ok(argon2::Argon2::default().hash_password(pw.as_bytes(), &salt).map_err(|e| anyhow!("{e}"))?.to_string())
 }
 
-fn check_password(hash: &str, pw: &str) -> bool {
+pub fn check_password(hash: &str, pw: &str) -> bool {
     use argon2::password_hash::{PasswordHash, PasswordVerifier};
     PasswordHash::new(hash).map(|h| argon2::Argon2::default().verify_password(pw.as_bytes(), &h).is_ok()).unwrap_or(false)
 }
@@ -185,16 +185,38 @@ impl Library {
         Ok(out)
     }
 
+    #[cfg_attr(not(test), allow(dead_code))] // the app uses the split versions below
     pub fn lock_folder(&mut self, id: &str, password: &str) -> Result<()> {
         if password.chars().count() < 4 {
             bail!("Use at least 4 characters");
         }
         let hash = hash_password(password)?;
+        self.set_lock_hash(id, hash)
+    }
+
+    /// Stores an already-computed password hash (hashing is slow, so callers
+    /// do it without holding the library).
+    pub fn set_lock_hash(&mut self, id: &str, hash: String) -> Result<()> {
         find_folder_mut(&mut self.meta.folders, id).ok_or_else(|| anyhow!("Folder not found"))?.lock = Some(hash);
         self.unlocked.remove(id);
         self.save_meta()
     }
 
+    pub fn lock_hash(&self, id: &str) -> Result<Option<String>> {
+        Ok(find_folder(&self.meta.folders, id).ok_or_else(|| anyhow!("Folder not found"))?.lock.clone())
+    }
+
+    pub fn mark_unlocked(&mut self, id: &str) {
+        self.unlocked.insert(id.to_string());
+    }
+
+    pub fn clear_lock(&mut self, id: &str) -> Result<()> {
+        find_folder_mut(&mut self.meta.folders, id).ok_or_else(|| anyhow!("Folder not found"))?.lock = None;
+        self.unlocked.remove(id);
+        self.save_meta()
+    }
+
+    #[cfg_attr(not(test), allow(dead_code))] // the app uses the split versions below
     pub fn unlock_folder(&mut self, id: &str, password: &str) -> Result<bool> {
         let f = find_folder(&self.meta.folders, id).ok_or_else(|| anyhow!("Folder not found"))?;
         let ok = f.lock.as_deref().map(|h| check_password(h, password)).unwrap_or(true);
@@ -209,6 +231,7 @@ impl Library {
         self.unlocked.remove(id);
     }
 
+    #[cfg_attr(not(test), allow(dead_code))] // the app uses the split versions below
     pub fn remove_lock(&mut self, id: &str, password: &str) -> Result<bool> {
         if !self.unlock_folder(id, password)? {
             return Ok(false);

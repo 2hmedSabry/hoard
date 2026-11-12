@@ -390,14 +390,36 @@ async fn crop_item(app: AppHandle, id: String, x: f32, y: f32, w: f32, h: f32) -
         .map_err(err)?
 }
 
+// Password hashing is slow on purpose, so it runs off the main thread and
+// without holding the library lock.
 #[tauri::command]
-fn lock_folder(st: State<AppState>, id: String, password: String) -> R<()> {
-    with_lib(&st, |l| l.lock_folder(&id, &password))
+async fn lock_folder(app: AppHandle, id: String, password: String) -> R<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        if password.chars().count() < 4 {
+            return Err("Use at least 4 characters".to_string());
+        }
+        let hash = library::hash_password(&password).map_err(err)?;
+        with_lib(&app.state::<AppState>(), |l| l.set_lock_hash(&id, hash))
+    })
+    .await
+    .map_err(err)?
 }
 
 #[tauri::command]
-fn unlock_folder(st: State<AppState>, id: String, password: String) -> R<bool> {
-    with_lib(&st, |l| l.unlock_folder(&id, &password))
+async fn unlock_folder(app: AppHandle, id: String, password: String) -> R<bool> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let hash = with_lib(&app.state::<AppState>(), |l| l.lock_hash(&id))?;
+        let ok = hash.map(|h| library::check_password(&h, &password)).unwrap_or(true);
+        if ok {
+            with_lib(&app.state::<AppState>(), |l| {
+                l.mark_unlocked(&id);
+                Ok(())
+            })?;
+        }
+        Ok(ok)
+    })
+    .await
+    .map_err(err)?
 }
 
 #[tauri::command]
@@ -409,8 +431,17 @@ fn relock_folder(st: State<AppState>, id: String) -> R<()> {
 }
 
 #[tauri::command]
-fn remove_folder_lock(st: State<AppState>, id: String, password: String) -> R<bool> {
-    with_lib(&st, |l| l.remove_lock(&id, &password))
+async fn remove_folder_lock(app: AppHandle, id: String, password: String) -> R<bool> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let hash = with_lib(&app.state::<AppState>(), |l| l.lock_hash(&id))?;
+        if !hash.map(|h| library::check_password(&h, &password)).unwrap_or(true) {
+            return Ok(false);
+        }
+        with_lib(&app.state::<AppState>(), |l| l.clear_lock(&id))?;
+        Ok(true)
+    })
+    .await
+    .map_err(err)?
 }
 
 #[tauri::command]

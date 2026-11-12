@@ -9,7 +9,9 @@ use image::{codecs::jpeg::JpegEncoder, DynamicImage, ImageDecoder, ImageReader};
 use std::fs;
 use std::io::BufWriter;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+#[cfg(target_os = "macos")]
+use std::process::Command;
+use std::process::Stdio;
 
 const THUMB: u32 = 480;
 
