@@ -1,0 +1,186 @@
+import { useEffect, useState } from "react";
+import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
+import { api } from "../api";
+import { beginDrag, type DropDetail } from "../drag";
+import type { Folder, LibraryInfo, Query, Scope, Stats } from "../types";
+import InlineEdit from "./InlineEdit";
+
+type Props = {
+  lib: LibraryInfo; stats: Stats | null; query: Query; setQuery: (f: (q: Query) => Query) => void;
+  onLibChange: () => void; onSwitchLibrary: (l: LibraryInfo) => void;
+  onDropItems: (ids: string[], folderId: string) => void; onEmptyTrash: () => void; fail: (e: unknown) => void;
+};
+
+type Editing = { kind: "new"; parent: string | null } | { kind: "rename"; id: string } | { kind: "tag"; tag: string } | { kind: "library" } | null;
+
+function useExpanded() {
+  const [open, setOpen] = useState<Set<string>>(() => {
+    try { return new Set(JSON.parse(localStorage.getItem("expanded") || "[]")); } catch { return new Set(); }
+  });
+  useEffect(() => { try { localStorage.setItem("expanded", JSON.stringify([...open])); } catch { /* ignore */ } }, [open]);
+  const toggle = (id: string, force?: boolean) =>
+    setOpen((s) => { const n = new Set(s); (force ?? !n.has(id)) ? n.add(id) : n.delete(id); return n; });
+  return { open, toggle };
+}
+
+export default function Sidebar(p: Props) {
+  const { lib, stats, query, setQuery, fail } = p;
+  const [editing, setEditing] = useState<Editing>(null);
+  const [menu, setMenu] = useState<string | null>(null);
+  const [libMenu, setLibMenu] = useState(false);
+  const { open, toggle } = useExpanded();
+
+  useEffect(() => {
+    const close = () => { setMenu(null); setLibMenu(false); };
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, []);
+
+  const go = (scope: Scope, folderId: string | null = null) => setQuery((q) => ({ ...q, scope, folderId }));
+  const active = (scope: Scope, id: string | null = null) => query.scope === scope && (scope !== "folder" || query.folderId === id);
+
+  const run = async (f: () => Promise<unknown>) => { try { await f(); p.onLibChange(); } catch (e) { fail(e); } };
+
+  const switchLibrary = async () => {
+    const path = await openDialog({ directory: true, title: "Open a .hoard library" });
+    if (typeof path === "string") api.openLibrary(path).then(p.onSwitchLibrary).catch(fail);
+  };
+  const newLibrary = async (name: string) => {
+    const parent = await openDialog({ directory: true, title: "Choose where to save the library" });
+    if (typeof parent === "string") api.createLibrary(parent, name).then(p.onSwitchLibrary).catch(fail);
+  };
+
+  const onDropRef = { current: (d: DropDetail) => {
+    const folderId = d.target === "__top" ? null : d.target;
+    if (d.payload.kind === "items" && folderId) p.onDropItems(d.payload.ids, folderId);
+    else if (d.payload.kind === "folder") run(() => api.moveFolder((d.payload as { id: string }).id, folderId)).then(() => folderId && toggle(folderId, true));
+  } };
+  useEffect(() => {
+    const h = (e: Event) => onDropRef.current((e as CustomEvent<DropDetail>).detail);
+    window.addEventListener("hoard-drop", h);
+    return () => window.removeEventListener("hoard-drop", h);
+  });
+
+  const row = (label: string, scope: Scope, count?: number, icon?: string) => (
+    <button className={`nav-row${active(scope) ? " active" : ""}`} onClick={() => go(scope)}>
+      <span className="icon">{icon}</span><span className="label">{label}</span>
+      {count != null && <span className="count">{count}</span>}
+    </button>
+  );
+
+  const renderFolder = (f: Folder, depth: number): React.ReactNode => {
+    const isOpen = open.has(f.id);
+    return (
+      <div key={f.id}>
+        <div
+          className={`nav-row folder${active("folder", f.id) ? " active" : ""}`}
+          style={{ paddingLeft: 8 + depth * 14 }} data-drop={f.id}
+          onMouseDown={(e) => { if (!(e.target as HTMLElement).closest("input, .more, .twisty, .menu")) beginDrag(e, () => ({ kind: "folder", id: f.id }), () => f.name); }}
+          onClick={() => go("folder", f.id)}
+          onDoubleClick={() => setEditing({ kind: "rename", id: f.id })}
+        >
+          <span className={`twisty${f.children.length ? "" : " empty"}${isOpen ? " open" : ""}`}
+            onClick={(e) => { e.stopPropagation(); toggle(f.id); }}>▸</span>
+          <span className="icon">▢</span>
+          {editing?.kind === "rename" && editing.id === f.id ? (
+            <InlineEdit initial={f.name} onDone={(v) => { setEditing(null); if (v && v !== f.name) run(() => api.renameFolder(f.id, v)); }} />
+          ) : <span className="label">{f.name}</span>}
+          <span className="count">{stats?.folders[f.id] ?? ""}</span>
+          <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === f.id ? null : f.id); }}>⋯</span>
+          {menu === f.id && (
+            <div className="menu" onClick={(e) => e.stopPropagation()}>
+              <button onClick={() => { setMenu(null); toggle(f.id, true); setEditing({ kind: "new", parent: f.id }); }}>New subfolder</button>
+              <button onClick={() => { setMenu(null); setEditing({ kind: "rename", id: f.id }); }}>Rename</button>
+              {depth > 0 && <button onClick={() => { setMenu(null); run(() => api.moveFolder(f.id, null)); }}>Move to top level</button>}
+              <button className="danger" onClick={async () => {
+                setMenu(null);
+                const ok = await ask(`Delete the folder "${f.name}" and its subfolders? The items stay in your library.`, { title: "Delete folder", kind: "warning", okLabel: "Delete" });
+                if (ok) { if (active("folder", f.id)) go("all"); run(() => api.deleteFolder(f.id)); }
+              }}>Delete folder</button>
+            </div>
+          )}
+        </div>
+        {isOpen && f.children.map((c) => renderFolder(c, depth + 1))}
+        {isOpen && editing?.kind === "new" && editing.parent === f.id && (
+          <div className="nav-row" style={{ paddingLeft: 8 + (depth + 1) * 14 + 16 }}>
+            <InlineEdit initial="" placeholder="Folder name" onDone={(v) => { setEditing(null); if (v) run(() => api.createFolder(v, f.id)); }} />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <aside className="sidebar">
+      <div className="lib-header" onClick={(e) => { e.stopPropagation(); setLibMenu(!libMenu); }}>
+        <div className="logo small" />
+        {editing?.kind === "library" ? (
+          <InlineEdit initial="" placeholder="New library name" onDone={(v) => { setEditing(null); if (v) newLibrary(v); }} />
+        ) : (
+          <>
+            <div className="lib-name" title={lib.root}>{lib.meta.name}</div>
+            <span className="chev">⌄</span>
+          </>
+        )}
+        {libMenu && (
+          <div className="menu" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => { setLibMenu(false); switchLibrary(); }}>Open library…</button>
+            <button onClick={() => { setLibMenu(false); setEditing({ kind: "library" }); }}>New library…</button>
+            <button onClick={() => { setLibMenu(false); run(async () => { await api.rebuildIndex(); }); }}>Rebuild search index</button>
+          </div>
+        )}
+      </div>
+
+      <div className="nav-scroll">
+        <div className="section">
+          {row("All items", "all", stats?.all, "◫")}
+          {row("Uncategorized", "uncategorized", stats?.uncategorized, "◌")}
+          {row("Untagged", "untagged", stats?.untagged, "#")}
+          <div className={`nav-row${active("trash") ? " active" : ""}`} onClick={() => go("trash")} role="button">
+            <span className="icon">⌫</span><span className="label">Trash</span>
+            {active("trash") && !!stats?.trash && <span className="link small" onClick={(e) => { e.stopPropagation(); p.onEmptyTrash(); }}>Empty</span>}
+            <span className="count">{stats?.trash}</span>
+          </div>
+        </div>
+
+        <div className="section-title" data-drop="__top">
+          <span>Folders</span>
+          <button className="icon-btn" title="New folder" onClick={() => setEditing({ kind: "new", parent: null })}>＋</button>
+        </div>
+        <div className="section">
+          {lib.meta.folders.map((f) => renderFolder(f, 0))}
+          {editing?.kind === "new" && editing.parent === null && (
+            <div className="nav-row" style={{ paddingLeft: 24 }}>
+              <InlineEdit initial="" placeholder="Folder name" onDone={(v) => { setEditing(null); if (v) run(() => api.createFolder(v, null)); }} />
+            </div>
+          )}
+          {!lib.meta.folders.length && editing?.kind !== "new" && <p className="muted small pad">No folders yet. Drag items onto a folder to file them.</p>}
+        </div>
+
+        <div className="section-title"><span>Tags</span></div>
+        <div className="section tag-list">
+          {stats?.tags.map(([t, n]) => (
+            <div key={t} className={`nav-row tag-row${query.tags.includes(t) ? " active" : ""}`}
+              onClick={() => setQuery((q) => ({ ...q, tags: q.tags.includes(t) ? q.tags.filter((x) => x !== t) : [...q.tags, t] }))}
+              onDoubleClick={() => setEditing({ kind: "tag", tag: t })}>
+              <span className="icon">#</span>
+              {editing?.kind === "tag" && editing.tag === t ? (
+                <InlineEdit initial={t} onDone={(v) => {
+                  setEditing(null);
+                  if (v && v !== t) run(() => api.renameTag(t, v)).then(() => setQuery((q) => ({ ...q, tags: q.tags.map((x) => (x === t ? v : x)) })));
+                }} />
+              ) : <span className="label">{t}</span>}
+              <span className="count">{n}</span>
+              <span className="more" title="Delete tag" onClick={async (e) => {
+                e.stopPropagation();
+                const ok = await ask(`Remove the tag "${t}" from ${n} item${n > 1 ? "s" : ""}?`, { title: "Delete tag", kind: "warning", okLabel: "Remove" });
+                if (ok) run(() => api.renameTag(t, "")).then(() => setQuery((q) => ({ ...q, tags: q.tags.filter((x) => x !== t) })));
+              }}>×</span>
+            </div>
+          ))}
+          {!stats?.tags.length && <p className="muted small pad">Tags you add to items show up here.</p>}
+        </div>
+      </div>
+    </aside>
+  );
+}
