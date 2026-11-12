@@ -17,6 +17,7 @@ Built with [Tauri 2](https://tauri.app), Rust and React.
 - **Edit in place.** Batch rename with patterns (`{name}`, `{n:3}`, `{date}`, `{w}×{h}` and more, plus find and replace). Rotate and flip images; thumbnails, sizes and colours update automatically.
 - **Packs and export.** Share items as a `.hoardpack` (files plus tags, ratings, notes and links) and import packs from the menu or by dropping them in. Copy originals out to any folder with tidy names.
 - **Area comments.** In the preview, drag a box on a picture and pin a comment to it. Comments are searchable and can drive smart folders.
+- **On-device AI (macOS).** Using Apple's Vision framework, entirely on your Mac: suggested tags for every picture, text found in images (English, Arabic and more) becomes searchable, and **Find similar** shows the pictures that look most alike. Nothing is uploaded.
 - **Find.** Instant prefix search across names, tags, notes and links; filters for type, tags, rating and colour. Colours are extracted from every item, so you can find "everything blue".
 - **Preview.** Full-window preview with arrow-key navigation and a slideshow (P). Videos play; audio shows a waveform you can click to seek; fonts show an editable sample at several sizes with Latin and Arabic glyphs; PDFs, text, Markdown, CSV and JSON open inline.
 - **Trash.** Deleted items can be restored until you empty the Trash.
@@ -25,6 +26,7 @@ Built with [Tauri 2](https://tauri.app), Rust and React.
 
 - macOS 12 or later (Windows and Linux builds are planned)
 - Optional: `ffmpeg` / `ffprobe` for video thumbnails and durations (`brew install ffmpeg`)
+- Building needs Xcode command line tools (`swiftc`) for the on-device analysis helper; without them Hoard builds without AI features
 
 ## Build from source
 

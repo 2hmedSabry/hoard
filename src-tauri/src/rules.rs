@@ -40,6 +40,16 @@ pub fn eval(rule: &Rule, it: &Item, meta: &LibraryMeta, now: i64) -> bool {
             op => it.annotations.iter().any(|a| text_op(&a.text, op, v)),
         },
         "url" => text_op(&it.url, &rule.op, v),
+        "ocr" => text_op(&it.ocr, &rule.op, v),
+        "labels" => {
+            let want = v.trim().to_lowercase();
+            match rule.op.as_str() {
+                "has" => it.labels.iter().any(|l| l.to_lowercase() == want),
+                "not_has" => !it.labels.iter().any(|l| l.to_lowercase() == want),
+                "contains" => it.labels.iter().any(|l| l.to_lowercase().contains(&want)),
+                _ => false,
+            }
+        }
         "ext" => text_op(&it.ext, &rule.op, v.trim_start_matches('.')),
         "kind" => match rule.op.as_str() {
             "is" => it.kind == v,

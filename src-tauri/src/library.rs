@@ -58,8 +58,13 @@ fn upsert(c: &Connection, it: &Item) -> Result<()> {
             it.id,
             it.name,
             // Area comments are searchable along with the note.
-            std::iter::once(it.note.as_str()).chain(it.annotations.iter().map(|a| a.text.as_str())).collect::<Vec<_>>().join(" "),
-            it.tags.join(" "),
+            std::iter::once(it.note.as_str())
+                .chain(it.annotations.iter().map(|a| a.text.as_str()))
+                .chain(std::iter::once(it.ocr.as_str()))
+                .collect::<Vec<_>>()
+                .join(" "),
+            // Suggested labels are searchable like tags.
+            it.tags.iter().chain(&it.labels).cloned().collect::<Vec<_>>().join(" "),
             it.url,
             it.ext
         ],
@@ -263,6 +268,7 @@ impl Library {
             uncategorized: count("SELECT COUNT(*) FROM items WHERE deleted=0 AND id NOT IN (SELECT item_id FROM item_folders)")?,
             untagged: count("SELECT COUNT(*) FROM items WHERE deleted=0 AND id NOT IN (SELECT item_id FROM item_tags)")?,
             trash: count("SELECT COUNT(*) FROM items WHERE deleted=1")?,
+            ai_pending: count("SELECT COUNT(*) FROM items WHERE deleted=0 AND kind IN ('image','video','document') AND coalesce(json_extract(json,'$.analyzed'),0)=0")?,
             ..Default::default()
         };
         let mut st = self.db.prepare(
@@ -598,6 +604,21 @@ impl Library {
     pub fn remove_watched(&mut self, id: &str) -> Result<()> {
         self.meta.watched.retain(|w| w.id != id);
         self.save_meta()
+    }
+
+    /// Items still waiting for on-device analysis, newest first.
+    pub fn pending_analysis(&self, limit: usize) -> Result<Vec<String>> {
+        let mut st = self.db.prepare(
+            "SELECT id FROM items WHERE deleted=0 AND kind IN ('image','video','document')
+             AND coalesce(json_extract(json,'$.analyzed'),0)=0 ORDER BY created_at DESC LIMIT ?1",
+        )?;
+        let rows = st.query_map([limit as i64], |r| r.get::<_, String>(0))?;
+        Ok(rows.collect::<std::result::Result<_, _>>()?)
+    }
+
+    /// Saves analysis results without touching the "edited" date.
+    pub fn save_analysis(&mut self, items: &[Item]) -> Result<()> {
+        self.save_items(items)
     }
 
     pub fn set_annotations(&mut self, id: &str, list: Vec<Annotation>) -> Result<Item> {

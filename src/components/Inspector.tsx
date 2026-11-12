@@ -10,7 +10,8 @@ type Props = {
   onUpdate: (ids: string[], patch: ItemPatch) => void; onTrash: (ids: string[], trashed: boolean) => void;
   onChanged: () => void;
   onNotice: (msg: string) => void;
-  onColor: (hex: string) => void; onTag: (t: string) => void; onPreview: (id: string) => void; fail: (e: unknown) => void;
+  onColor: (hex: string) => void;
+  onSimilar: (id: string) => void; onTag: (t: string) => void; onPreview: (id: string) => void; fail: (e: unknown) => void;
 };
 
 function TagAdder({ onAdd, known }: { onAdd: (tags: string[]) => void; known: string[] }) {
@@ -169,7 +170,23 @@ export default function Inspector(p: Props) {
           ))}
         </div>
         <TagAdder known={known.filter((k) => !one.tags.includes(k))} onAdd={(tags) => save({ addTags: tags })} />
+        {(() => {
+          const sugg = (one.labels ?? []).filter((l) => !one.tags.some((t) => t.toLowerCase() === l.toLowerCase()));
+          return sugg.length ? (
+            <div className="suggest">
+              <span className="muted small">Suggested:</span>
+              {sugg.map((l) => <button key={l} className="chip" title="Add as tag" onClick={() => save({ addTags: [l] })}>+ {l}</button>)}
+              {sugg.length > 1 && <button className="link small" onClick={() => save({ addTags: sugg })}>Add all</button>}
+            </div>
+          ) : null;
+        })()}
       </section>
+      {one.ocr && (
+        <section>
+          <label>Text in image</label>
+          <pre className="ocr" dir="auto">{one.ocr}</pre>
+        </section>
+      )}
 
       <section>
         <label>Folders</label>
@@ -218,6 +235,7 @@ export default function Inspector(p: Props) {
 
       {tools}
       <div className="actions">
+        {one.analyzed && ["image", "video", "document"].includes(one.kind) && <button onClick={() => p.onSimilar(one.id)}>Find similar</button>}
         <button onClick={() => api.open(one.id).catch(p.fail)}>Open</button>
         <button onClick={() => api.reveal(one.id).catch(p.fail)}>Show in Finder</button>
         {inTrash

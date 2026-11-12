@@ -233,6 +233,7 @@ export default function Sidebar(p: Props) {
           {!stats?.tags.length && <p className="muted small pad">Tags you add to items show up here.</p>}
         </div>
       </div>
+      {!!stats?.aiPending && <div className="ai-status"><span className="spin" /> Analysing {stats.aiPending} item{stats.aiPending > 1 ? "s" : ""} on this Mac…</div>}
       {watching && <WatchedFolders lib={lib} onChange={p.onLibChange} onClose={() => setWatching(false)} fail={fail} />}
       {connect && <BrowserConnect onClose={() => setConnect(false)} fail={fail} />}
       {smartEdit && (

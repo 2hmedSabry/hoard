@@ -32,7 +32,7 @@ export default function Toolbar({ query, setQuery, thumbSize, setThumbSize, onIm
   const toggleKind = (k: Kind) => setQuery((q) => ({ ...q, kinds: q.kinds.includes(k) ? q.kinds.filter((x) => x !== k) : [...q.kinds, k] }));
   const folderName = query.folderId ? flattenFolders(folders).find((x) => x.f.id === query.folderId)?.f.name : null;
   const smartName = query.smartFolderId ? smartFolders.find((s) => s.id === query.smartFolderId)?.name : null;
-  const title = { all: "All items", uncategorized: "Uncategorized", untagged: "Untagged", trash: "Trash", folder: folderName ?? "Folder", smart: smartName ?? "Smart folder", duplicates: "Duplicates" }[query.scope];
+  const title = { all: "All items", uncategorized: "Uncategorized", untagged: "Untagged", trash: "Trash", folder: folderName ?? "Folder", smart: smartName ?? "Smart folder", duplicates: "Duplicates", similar: "Similar items" }[query.scope];
   const filtered = query.tags.length || query.kinds.length || query.minRating || query.color || query.text;
 
   return (

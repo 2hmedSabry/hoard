@@ -47,7 +47,7 @@ export default function App() {
     if (!lib) return;
     const n = ++seq.current;
     try {
-      const [list, st] = await Promise.all([query.scope === "duplicates" ? Promise.resolve([]) : api.query(query), api.stats()]);
+      const [list, st] = await Promise.all([query.scope === "duplicates" ? Promise.resolve([]) : query.scope === "similar" && query.similarTo ? api.similar(query.similarTo) : api.query(query), api.stats()]);
       if (n !== seq.current) return;
       setItems(list);
       setStats(st);
@@ -98,6 +98,7 @@ export default function App() {
     const un: Promise<() => void>[] = [
       listen<ImportProgress>("import-progress", (e) => setProgress(e.payload)),
       listen("items-imported", () => refreshRef.current()),
+      listen("items-analyzed", () => refreshRef.current()),
       getCurrentWebview().onDragDropEvent((e) => {
         const p = e.payload;
         if (p.type === "enter" || p.type === "over") setDropping(true);
@@ -214,6 +215,7 @@ export default function App() {
         inTrash={query.scope === "trash"} total={stats?.all ?? 0}
         onUpdate={update} onTrash={trash} onChanged={refresh} onNotice={setNotice}
         onColor={(c) => setQuery((q) => ({ ...q, color: c }))}
+        onSimilar={(id) => setQuery((q) => ({ ...q, scope: "similar", similarTo: id, folderId: null, smartFolderId: null }))}
         onTag={(t) => setQuery((q) => ({ ...q, tags: q.tags.includes(t) ? q.tags : [...q.tags, t] }))}
         onPreview={(id) => setPreviewId(id)} fail={fail}
       />

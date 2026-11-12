@@ -32,6 +32,7 @@ export const api = {
   exportFiles: (ids: string[], dest: string) => invoke<number>("export_files", { ids, dest }),
   importPack: (path: string) => invoke<[number, number]>("import_pack", { path }),
   setAnnotations: (id: string, annotations: Annotation[]) => invoke<Item>("set_annotations", { id, annotations }),
+  similar: (id: string) => invoke<Item[]>("similar_items", { id }),
   renameTag: (from: string, to: string) => invoke<void>("rename_tag", { from, to }),
   rebuildIndex: () => invoke<number>("rebuild_index"),
   reveal: (id: string) => invoke<void>("reveal_item", { id }),

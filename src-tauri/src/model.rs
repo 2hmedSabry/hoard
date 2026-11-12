@@ -43,6 +43,14 @@ pub struct Item {
     pub thumb: Option<String>,
     #[serde(default)]
     pub duration: Option<f64>,
+    /// Labels suggested by on-device image analysis.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub labels: Vec<String>,
+    /// Text found in the picture.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub ocr: String,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub analyzed: bool,
     /// Comments pinned to areas of the picture.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub annotations: Vec<Annotation>,
@@ -177,6 +185,7 @@ pub struct Stats {
     pub trash: i64,
     pub folders: std::collections::HashMap<String, i64>,
     pub smart: std::collections::HashMap<String, i64>,
+    pub ai_pending: i64,
     pub tags: Vec<(String, i64)>,
 }
 

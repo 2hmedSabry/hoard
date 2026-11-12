@@ -1,3 +1,4 @@
+mod ai;
 mod api_server;
 mod hashing;
 mod import;
@@ -271,6 +272,13 @@ fn set_annotations(st: State<AppState>, id: String, annotations: Vec<Annotation>
 }
 
 #[tauri::command]
+async fn similar_items(app: AppHandle, id: String) -> R<Vec<Item>> {
+    tauri::async_runtime::spawn_blocking(move || with_lib(&app.state::<AppState>(), |l| ai::similar(l, &id, 80)))
+        .await
+        .map_err(err)?
+}
+
+#[tauri::command]
 fn rename_items(st: State<AppState>, names: Vec<(String, String)>) -> R<()> {
     with_lib(&st, |l| l.rename_many(&names))
 }
@@ -336,6 +344,7 @@ pub fn run() {
         .setup(|app| {
             api_server::start(app.handle().clone());
             watch::start(app.handle().clone());
+            ai::start(app.handle().clone());
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -366,6 +375,7 @@ pub fn run() {
             import_paths,
             add_watched_folder,
             rename_items,
+            similar_items,
             set_annotations,
             export_pack,
             export_files,

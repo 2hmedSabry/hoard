@@ -108,6 +108,9 @@ pub fn import_file(items_dir: &Path, src: &Path, folder: Option<&str>, seen: &Mu
             thumb: None,
             duration: None,
             annotations: vec![],
+            labels: vec![],
+            ocr: String::new(),
+            analyzed: false,
             fhash: Some(fhash.clone()),
             dhash: None,
         };

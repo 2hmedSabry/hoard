@@ -26,6 +26,8 @@ export const FIELDS: Record<string, Field> = {
   modified: { label: "Date edited", ops: DATE_OPS, input: "days", unit: "days" },
   color: { label: "Colour", ops: [["similar", "is similar to"]], input: "color" },
   note: { label: "Note", ops: TEXT_OPS, input: "text" },
+  labels: { label: "Suggested labels", ops: [["has", "include"], ["not_has", "don't include"], ["contains", "contain text"]], input: "text" },
+  ocr: { label: "Text in image", ops: TEXT_OPS, input: "text" },
   annotation: { label: "Area comments", ops: [["contains", "contain"], ["not_empty", "exist"], ["empty", "don't exist"]], input: "text" },
   url: { label: "Source link", ops: TEXT_OPS, input: "text" },
 };
