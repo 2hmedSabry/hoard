@@ -483,3 +483,7 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline: non
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
 }
+
+button.more { border: none; background: none; padding: 0 4px; height: 20px; border-radius: 4px; color: var(--muted); }
+button.more:hover { background: var(--active); color: var(--text); }
+.nav-row:focus-visible .more, .nav-row:focus-within .more { display: inline-flex; }

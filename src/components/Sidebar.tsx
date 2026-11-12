@@ -95,7 +95,7 @@ export default function Sidebar(p: Props) {
   const ungrouped = (stats?.tags ?? []).filter(([t]) => !grouped.has(t));
 
   const tagRow = (t: string, n: number, color?: string) => (
-    <div key={t} className={`nav-row tag-row${query.tags.includes(t) ? " active" : ""}`}
+    <div key={t} role="button" tabIndex={0} aria-pressed={query.tags.includes(t)} className={`nav-row tag-row${query.tags.includes(t) ? " active" : ""}`}
       onClick={() => setQuery((q) => ({ ...q, tags: q.tags.includes(t) ? q.tags.filter((x) => x !== t) : [...q.tags, t] }))}
       onDoubleClick={() => setEditing({ kind: "tag", tag: t })}>
       <span className="icon" style={color ? { color } : undefined}><I g="#" /></span>
@@ -106,7 +106,7 @@ export default function Sidebar(p: Props) {
         }} />
       ) : <span className="label">{t}</span>}
       <span className="count">{n}</span>
-      <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === "tag:" + t ? null : "tag:" + t); }}><I g="⋯" /></span>
+      <button type="button" className="more" aria-label={tr("More actions")} aria-haspopup="menu" onClick={(e) => { e.stopPropagation(); setMenu(menu === "tag:" + t ? null : "tag:" + t); }}><I g="⋯" /></button>
       {menu === "tag:" + t && (
         <div className="menu" onClick={(e) => e.stopPropagation()}>
           {(lib.meta.tagGroups ?? []).length > 0 && <div className="menu-label">{tr("Move to group")}</div>}
@@ -139,6 +139,7 @@ export default function Sidebar(p: Props) {
     return (
       <div key={f.id}>
         <div
+          role="button" tabIndex={0} aria-label={f.lock && !unlocked.has(f.id) ? `${f.name}, ${tr("locked")}` : f.name}
           className={`nav-row folder${active("folder", f.id) ? " active" : ""}`}
           style={{ paddingInlineStart: 8 + depth * 14 }} data-drop={f.id}
           onMouseDown={(e) => { if (!(e.target as HTMLElement).closest("input, .more, .twisty, .menu")) beginDrag(e, () => ({ kind: "folder", id: f.id }), () => f.name); }}
@@ -152,7 +153,7 @@ export default function Sidebar(p: Props) {
             <InlineEdit initial={f.name} onDone={(v) => { setEditing(null); if (v && v !== f.name) run(() => api.renameFolder(f.id, v)); }} />
           ) : <span className="label">{f.name}</span>}
           <span className="count">{stats?.folders[f.id] ?? ""}</span>
-          <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === f.id ? null : f.id); }}><I g="⋯" /></span>
+          <button type="button" className="more" aria-label={tr("More actions")} aria-haspopup="menu" onClick={(e) => { e.stopPropagation(); setMenu(menu === f.id ? null : f.id); }}><I g="⋯" /></button>
           {menu === f.id && (
             <div className="menu" onClick={(e) => e.stopPropagation()}>
               <button onClick={() => { setMenu(null); toggle(f.id, true); setEditing({ kind: "new", parent: f.id }); }}>{tr("New subfolder")}</button>
@@ -184,8 +185,8 @@ export default function Sidebar(p: Props) {
   };
 
   return (
-    <aside className="sidebar">
-      <div className="lib-header" onClick={(e) => { e.stopPropagation(); setLibMenu(!libMenu); }}>
+    <aside className="sidebar" aria-label={tr("Library")}>
+      <div className="lib-header" role="button" tabIndex={0} aria-haspopup="menu" aria-label={tr("Library menu")} onClick={(e) => { e.stopPropagation(); setLibMenu(!libMenu); }}>
         <div className="logo small" />
         {editing?.kind === "library" ? (
           <InlineEdit initial="" placeholder={tr("New library name")} onDone={(v) => { setEditing(null); if (v) newLibrary(v); }} />
@@ -235,7 +236,7 @@ export default function Sidebar(p: Props) {
           {row("Uncategorized", "uncategorized", stats?.uncategorized, "◌")}
           {row("Untagged", "untagged", stats?.untagged, "#")}
           {row("Duplicates", "duplicates", undefined, "⧉")}
-          <div className={`nav-row${active("trash") ? " active" : ""}`} onClick={() => go("trash")} role="button">
+          <div className={`nav-row${active("trash") ? " active" : ""}`} onClick={() => go("trash")} role="button" tabIndex={0}>
             <span className="icon"><I g="⌫" /></span><span className="label">{tr("Trash")}</span>
             {active("trash") && !!stats?.trash && <span className="link small" onClick={(e) => { e.stopPropagation(); p.onEmptyTrash(); }}>{tr("Empty")}</span>}
             <span className="count">{stats?.trash}</span>
@@ -248,11 +249,11 @@ export default function Sidebar(p: Props) {
         </div>
         <div className="section">
           {lib.meta.smartFolders.map((sf) => (
-            <div key={sf.id} className={`nav-row${active("smart", sf.id) ? " active" : ""}`} onClick={() => go("smart", sf.id)}
+            <div key={sf.id} role="button" tabIndex={0} className={`nav-row${active("smart", sf.id) ? " active" : ""}`} onClick={() => go("smart", sf.id)}
               onDoubleClick={() => setSmartEdit(sf)}>
               <span className="icon"><I g="✦" /></span><span className="label">{sf.name}</span>
               <span className="count">{stats?.smart[sf.id] ?? ""}</span>
-              <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === sf.id ? null : sf.id); }}><I g="⋯" /></span>
+              <button type="button" className="more" aria-label={tr("More actions")} aria-haspopup="menu" onClick={(e) => { e.stopPropagation(); setMenu(menu === sf.id ? null : sf.id); }}><I g="⋯" /></button>
               {menu === sf.id && (
                 <div className="menu" onClick={(e) => e.stopPropagation()}>
                   <button onClick={() => { setMenu(null); setSmartEdit(sf); }}>{tr("Edit rules…")}</button>
@@ -295,14 +296,14 @@ export default function Sidebar(p: Props) {
             const open = !collapsed.has(g.id);
             return (
               <div key={g.id} className="tag-group">
-                <div className="nav-row group-row" onClick={() => toggleGroup(g.id)}>
+                <div className="nav-row group-row" role="button" tabIndex={0} onClick={() => toggleGroup(g.id)}>
                   <span className={`twisty${open ? " open" : ""}`}><I g="▸" /></span>
                   <span className="dot" style={{ background: g.color ?? "var(--muted)" }} />
                   {editing?.kind === "group" && editing.id === g.id
                     ? <InlineEdit initial={g.name} onDone={(v) => { setEditing(null); if (v && v !== g.name) run(() => api.saveTagGroup(g.id, v, g.color ?? null)); }} />
                     : <span className="label">{g.name}</span>}
                   <span className="count">{inGroup.length}</span>
-                  <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === "group:" + g.id ? null : "group:" + g.id); }}><I g="⋯" /></span>
+                  <button type="button" className="more" aria-label={tr("More actions")} aria-haspopup="menu" onClick={(e) => { e.stopPropagation(); setMenu(menu === "group:" + g.id ? null : "group:" + g.id); }}><I g="⋯" /></button>
                   {menu === "group:" + g.id && (
                     <div className="menu" onClick={(e) => e.stopPropagation()}>
                       <div className="swatch-row">{COLORS.map((c) => <button key={c} className="swatch" style={{ background: c }} onClick={() => { setMenu(null); run(() => api.saveTagGroup(g.id, g.name, c)); }} />)}</div>
@@ -329,9 +330,9 @@ export default function Sidebar(p: Props) {
         </div>
         <div className="section">
           {plugins.map((pl) => (
-            <div key={pl.id} className="nav-row" title={pl.description} onClick={() => p.onOpenPlugin(pl)}>
+            <div key={pl.id} role="button" tabIndex={0} className="nav-row" title={pl.description} onClick={() => p.onOpenPlugin(pl)}>
               <span className="icon"><I g="⧈" /></span><span className="label">{pl.name}</span>
-              <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === "plugin:" + pl.id ? null : "plugin:" + pl.id); }}><I g="⋯" /></span>
+              <button type="button" className="more" aria-label={tr("More actions")} aria-haspopup="menu" onClick={(e) => { e.stopPropagation(); setMenu(menu === "plugin:" + pl.id ? null : "plugin:" + pl.id); }}><I g="⋯" /></button>
               {menu === "plugin:" + pl.id && (
                 <div className="menu" onClick={(e) => e.stopPropagation()}>
                   <p className="muted small pad">{pl.description || pl.name}<br />{tr("Permissions")}: {pl.permissions.join(", ") || "—"}</p>

@@ -91,7 +91,7 @@ export default function Inspector(p: Props) {
 
   if (!items.length) {
     return (
-      <aside className="inspector">
+      <aside className="inspector" aria-label={tr("Details")}>
         <div className="inspector-empty">
           <p className="big">{count(p.total, "1 item", "{n} items")}</p>
           <p className="muted">{tr("Select an item to see and edit its details.")}</p>
@@ -109,7 +109,7 @@ export default function Inspector(p: Props) {
   if (!one) {
     const common = items.reduce<string[]>((acc, it) => acc.filter((t) => it.tags.includes(t)), items[0].tags);
     return (
-      <aside className="inspector">
+      <aside className="inspector" aria-label={tr("Details")}>
         <div className="stack">
           {items.slice(0, 3).map((it, i) => {
             const t = thumbUrl(root, it);
@@ -146,7 +146,7 @@ export default function Inspector(p: Props) {
   const save = (patch: ItemPatch) => p.onUpdate([one.id], patch);
 
   return (
-    <aside className="inspector">
+    <aside className="inspector" aria-label={tr("Details")}>
       <div className="hero" onClick={() => p.onPreview(one.id)} title={tr("Preview (Space)")}>
         {t ? <img src={t} /> : <div className="ext-tile">{one.ext.toUpperCase()}</div>}
       </div>
@@ -158,7 +158,7 @@ export default function Inspector(p: Props) {
           ))}
         </div>
       )}
-      <input className="name-input" value={name} onChange={(e) => setName(e.target.value)}
+      <input id="item-name" aria-label={tr("Name")} className="name-input" value={name} onChange={(e) => setName(e.target.value)}
         onBlur={() => name.trim() && name !== one.name && save({ name })}
         onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
       <Stars value={one.rating} onChange={(r) => save({ rating: r })} size={18} />

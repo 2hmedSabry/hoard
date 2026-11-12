@@ -39,7 +39,7 @@ export default function Toolbar({ query, setQuery, thumbSize, setThumbSize, onIm
   const filtered = query.tags.length || query.kinds.length || query.minRating || query.color || query.text;
 
   return (
-    <header className="toolbar">
+    <header className="toolbar" aria-label={tr("Toolbar")}>
       <div className="row">
         <div className="title">
           <h2>{query.scope === "folder" || query.scope === "smart" ? title : tr(title)}</h2>
@@ -47,11 +47,11 @@ export default function Toolbar({ query, setQuery, thumbSize, setThumbSize, onIm
         </div>
         <div className="search">
           <span className="muted"><I g="⌕" /></span>
-          <input ref={search} placeholder={tr("Search names, tags, notes, links (⌘F)")} value={query.text}
+          <input ref={search} aria-label={tr("Search")} placeholder={tr("Search names, tags, notes, links (⌘F)")} value={query.text}
             onChange={(e) => setQuery((q) => ({ ...q, text: e.target.value }))}
             onKeyDown={(e) => e.key === "Escape" && setQuery((q) => ({ ...q, text: "" }))} />
         </div>
-        <input type="range" min={100} max={360} value={thumbSize} title={tr("Thumbnail size")}
+        <input type="range" aria-label={tr("Thumbnail size")} min={100} max={360} value={thumbSize} title={tr("Thumbnail size")}
           onChange={(e) => setThumbSize(Number(e.target.value))} />
         <div className="popover-wrap">
           <button className="primary" onClick={(e) => { e.stopPropagation(); setImportOpen(!importOpen); }}>{tr("Import")} ⌄</button>

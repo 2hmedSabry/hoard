@@ -13,7 +13,7 @@ import Inspector from "./components/Inspector";
 import Preview from "./components/Preview";
 import Duplicates from "./components/Duplicates";
 import QuickSwitch from "./components/QuickSwitch";
-import { is as isKey } from "./shortcuts";
+import { is as isKey, isWithShift } from "./shortcuts";
 import PluginHost, { type PluginInfo } from "./components/PluginHost";
 
 const DEFAULT_QUERY: Query = {
@@ -40,6 +40,11 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
+  const [cols, setCols] = useState(1);
+  const [focusId, setFocusId] = useState<string | null>(null);
+  // Messages for screen readers (polite live region).
+  const [spoken, setSpoken] = useState("");
+  const announce = useCallback((m: string) => { setSpoken(""); setTimeout(() => setSpoken(m), 30); }, []);
   const [plugin, setPlugin] = useState<{ info: PluginInfo; html: string } | null>(null);
   useEffect(() => { if (!notice) return; const t = setTimeout(() => setNotice(null), 3500); return () => clearTimeout(t); }, [notice]);
   const seq = useRef(0);
@@ -179,16 +184,39 @@ export default function App() {
       else if (isKey(e, "trash") && selected.size && query.scope !== "trash") { e.preventDefault(); trash([...selected], true); }
       else if (isKey(e, "selectAll")) { e.preventDefault(); setSelected(new Set(items.map((i) => i.id))); }
       else if (isKey(e, "clear")) setSelected(new Set());
-      else if ((isKey(e, "next") || isKey(e, "prev")) && items.length) {
+      else if (isKey(e, "open") && selected.size) { e.preventDefault(); setPreviewId([...selected][0]); }
+      else if (isKey(e, "rename") && selected.size === 1) {
         e.preventDefault();
-        const cur = items.findIndex((i) => i.id === anchor);
-        const next = Math.max(0, Math.min(items.length - 1, cur + (isKey(e, "next") ? 1 : -1)));
-        setSelected(new Set([items[next].id])); setAnchor(items[next].id);
+        const el = document.getElementById("item-name") as HTMLInputElement | null;
+        el?.focus(); el?.select();
+      }
+      else if (isKey(e, "zoomIn") || isKey(e, "zoomOut")) {
+        e.preventDefault();
+        setThumbSize((s) => Math.max(100, Math.min(360, s + (isKey(e, "zoomIn") ? 30 : -30))));
+      }
+      else if (items.length && (["next", "prev", "up", "down", "first", "last"] as const).some((a) => isWithShift(e, a))) {
+        e.preventDefault();
+        // Arrow keys move in two directions through the grid; Shift extends the selection.
+        const cur = Math.max(0, items.findIndex((i) => i.id === (focusId ?? anchor)));
+        const rtl = document.documentElement.dir === "rtl";
+        const step = isWithShift(e, "next") ? (rtl ? -1 : 1) : isWithShift(e, "prev") ? (rtl ? 1 : -1)
+          : isWithShift(e, "down") ? cols : isWithShift(e, "up") ? -cols : 0;
+        const to = isWithShift(e, "first") ? 0 : isWithShift(e, "last") ? items.length - 1 : Math.max(0, Math.min(items.length - 1, cur + step));
+        const id = items[to].id;
+        if (e.shiftKey && anchor) {
+          const a = items.findIndex((i) => i.id === anchor);
+          const [s, t] = a < to ? [a, to] : [to, a];
+          setSelected(new Set(items.slice(s, t + 1).map((i) => i.id)));
+        } else {
+          setSelected(new Set([id])); setAnchor(id);
+        }
+        setFocusId(id);
+        announce(items[to].name);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [items, selected, anchor, previewId, query.scope, trash, pickImport]);
+  }, [items, selected, anchor, focusId, cols, previewId, query.scope, trash, pickImport]);
 
   if (booting) return <div className="boot" />;
   if (!lib) return <Welcome onOpen={(l) => { setLib(l); setQuery(DEFAULT_QUERY); }} error={error} setError={setError} />;
@@ -210,7 +238,7 @@ export default function App() {
         <Grid
           root={lib.root} items={items} selected={selected} thumbSize={thumbSize}
           onSelect={select} onClear={() => setSelected(new Set())}
-          onOpen={(id) => setPreviewId(id)} emptyHint={query}
+          onOpen={(id) => setPreviewId(id)} emptyHint={query} onCols={setCols} focusId={focusId}
         />
         </>}
         {progress && (
@@ -240,6 +268,7 @@ export default function App() {
         <PluginHost plugin={plugin.info} html={plugin.html} root={lib.root} selected={selectedItems}
           onChanged={refresh} onNotice={setNotice} onClose={() => setPlugin(null)} />
       )}
+      <div className="sr-only" role="status" aria-live="polite">{spoken || notice || ""}</div>
       {notice && <div className="toast ok" onClick={() => setNotice(null)}><span>{notice}</span></div>}
       {error && (
         <div className="toast" onClick={() => setError(null)}>

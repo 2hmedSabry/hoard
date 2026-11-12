@@ -8,8 +8,10 @@ import "@fontsource/ibm-plex-sans-arabic/500.css";
 import "@fontsource/ibm-plex-sans-arabic/600.css";
 import "./styles.css";
 import { initTheme } from "./theme";
+import { installA11y } from "./a11y";
 
 initTheme();
+installA11y();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(<React.StrictMode><ErrorBoundary><App /></ErrorBoundary></React.StrictMode>);
 

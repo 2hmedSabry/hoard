@@ -8,6 +8,7 @@ import type { Item, Query } from "../types";
 type Props = {
   root: string; items: Item[]; selected: Set<string>; thumbSize: number;
   onSelect: (id: string, e: React.MouseEvent) => void; onClear: () => void; onOpen: (id: string) => void; emptyHint: Query;
+  onCols: (n: number) => void; focusId: string | null;
 };
 
 const GAP = 14;
@@ -21,6 +22,8 @@ const Tile = memo(function Tile({ root, item, size, selected, selectedIds, onSel
   const [failed, setFailed] = useState(false);
   return (
     <div
+      id={"tile-" + item.id} role="option" aria-selected={selected} tabIndex={-1}
+      aria-label={`${item.name}, ${item.ext.toUpperCase()}${item.width ? `, ${item.width} × ${item.height}` : ""}${item.rating ? `, ${item.rating}★` : ""}`}
       className={`tile${selected ? " selected" : ""}`} style={{ width: size }}
       onClick={(e) => { e.stopPropagation(); onSelect(item.id, e); }}
       onDoubleClick={() => onOpen(item.id)}
@@ -45,7 +48,7 @@ const Tile = memo(function Tile({ root, item, size, selected, selectedIds, onSel
   );
 });
 
-export default function Grid({ root, items, selected, thumbSize, onSelect, onClear, onOpen, emptyHint }: Props) {
+export default function Grid({ root, items, selected, thumbSize, onSelect, onClear, onOpen, emptyHint, onCols, focusId }: Props) {
   const scroller = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
 
@@ -61,6 +64,16 @@ export default function Grid({ root, items, selected, thumbSize, onSelect, onCle
   const cols = Math.max(1, Math.floor((inner + GAP) / (thumbSize + GAP)));
   const size = Math.floor((inner - GAP * (cols - 1)) / cols);
   const rows = Math.ceil(items.length / cols);
+  useEffect(() => { onCols(cols); }, [cols, onCols]);
+
+  // Keep the keyboard-focused tile in view and give it focus for screen readers.
+  useEffect(() => {
+    if (!focusId) return;
+    const idx = items.findIndex((i) => i.id === focusId);
+    if (idx < 0) return;
+    v.scrollToIndex(Math.floor(idx / cols), { align: "auto" });
+    requestAnimationFrame(() => document.getElementById("tile-" + focusId)?.focus({ preventScroll: true }));
+  }, [focusId]); // eslint-disable-line
 
   const v = useVirtualizer({
     count: rows, getScrollElement: () => scroller.current, estimateSize: () => size + LABEL + GAP, overscan: 4,
@@ -88,7 +101,9 @@ export default function Grid({ root, items, selected, thumbSize, onSelect, onCle
   }
 
   return (
-    <div className="grid" ref={scroller} onClick={onClear}>
+    <div className="grid" ref={scroller} onClick={onClear} role="listbox" aria-multiselectable="true"
+      aria-label={tr("Items")} tabIndex={0}
+      onFocus={(e) => { if (e.target === e.currentTarget && items[0] && !selected.size) document.getElementById("tile-" + items[0].id)?.focus(); }}>
       <div style={{ height: v.getTotalSize() + GAP, position: "relative" }}>
         {v.getVirtualItems().map((r) => (
           <div key={r.key} className="grid-row" style={{ transform: `translateY(${r.start + GAP}px)`, gap: GAP, paddingInlineStart: GAP }}>
