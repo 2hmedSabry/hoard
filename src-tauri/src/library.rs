@@ -1,7 +1,10 @@
 //! A library is a folder `Name.hoard/` with `library.json`, `items/<id>/` and a
 //! rebuildable SQLite search index `index.db`.
 use crate::model::*;
+use crate::hashing;
 use crate::palette;
+use crate::rules;
+use std::collections::{HashMap, HashSet};
 use anyhow::{anyhow, bail, Context, Result};
 use rusqlite::{params, Connection, ToSql};
 use std::fs;
@@ -87,7 +90,7 @@ impl Library {
             bail!("A library named \"{clean}\" already exists in that folder");
         }
         fs::create_dir_all(root.join("items"))?;
-        let meta = LibraryMeta { name: clean, version: 1, folders: vec![], created_at: now_ms() };
+        let meta = LibraryMeta { name: clean, version: 1, folders: vec![], smart_folders: vec![], created_at: now_ms() };
         write_json(&root.join("library.json"), &meta)?;
         Self::open(&root)
     }
@@ -188,6 +191,11 @@ impl Library {
                 sql.push_str(&format!(" AND id IN (SELECT item_id FROM item_folders WHERE folder_id IN ({ph}))"));
                 args.extend(ids.into_iter().map(|i| Box::new(i) as Box<dyn ToSql>));
             }
+            "smart" => {
+                if q.smart_folder_id.as_deref().and_then(|id| self.smart(id)).is_none() {
+                    return Ok(vec![]);
+                }
+            }
             _ => {}
         }
         for t in &q.tags {
@@ -220,9 +228,16 @@ impl Library {
         let refs: Vec<&dyn ToSql> = args.iter().map(|b| b.as_ref()).collect();
         let rows = stmt.query_map(refs.as_slice(), |r| r.get::<_, String>(0))?;
         let target = q.color.as_deref().and_then(palette::hex_to_lab);
+        let smart = if q.scope == "smart" { q.smart_folder_id.as_deref().and_then(|id| self.smart(id)) } else { None };
+        let now = now_ms();
         let mut out = vec![];
         for row in rows {
             let it: Item = serde_json::from_str(&row?)?;
+            if let Some(sf) = smart {
+                if !rules::matches(sf, &it, &self.meta, now) {
+                    continue;
+                }
+            }
             if let Some(t) = &target {
                 if !palette::matches(&it.palette, t) {
                     continue;
@@ -254,6 +269,14 @@ impl Library {
         )?;
         for r in st.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))? {
             s.tags.push(r?);
+        }
+        if !self.meta.smart_folders.is_empty() {
+            let items = self.all_items(false)?;
+            let now = now_ms();
+            for sf in &self.meta.smart_folders {
+                let n = items.iter().filter(|it| rules::matches(sf, it, &self.meta, now)).count();
+                s.smart.insert(sf.id.clone(), n as i64);
+            }
         }
         Ok(s)
     }
@@ -384,6 +407,158 @@ impl Library {
             self.update_items(&ids, &ItemPatch { add_tags: vec![to.into()], ..Default::default() })?;
         }
         Ok(())
+    }
+
+    pub fn all_items(&self, deleted: bool) -> Result<Vec<Item>> {
+        let mut st = self.db.prepare("SELECT json FROM items WHERE deleted=?1")?;
+        let rows = st.query_map([deleted as i64], |r| r.get::<_, String>(0))?;
+        let mut out = vec![];
+        for r in rows {
+            out.push(serde_json::from_str(&r?)?);
+        }
+        Ok(out)
+    }
+
+    fn smart(&self, id: &str) -> Option<&SmartFolder> {
+        self.meta.smart_folders.iter().find(|s| s.id == id)
+    }
+
+    fn clean_rules(rules: Vec<Rule>) -> Vec<Rule> {
+        rules.into_iter().filter(|r| !r.field.is_empty() && !r.op.is_empty()).collect()
+    }
+
+    pub fn create_smart_folder(&mut self, name: &str, match_mode: &str, rules: Vec<Rule>) -> Result<SmartFolder> {
+        let name = name.trim();
+        if name.is_empty() {
+            bail!("Smart folder name is empty");
+        }
+        let sf = SmartFolder {
+            id: new_id(),
+            name: name.into(),
+            match_mode: if match_mode == "any" { "any" } else { "all" }.into(),
+            rules: Self::clean_rules(rules),
+        };
+        self.meta.smart_folders.push(sf.clone());
+        self.save_meta()?;
+        Ok(sf)
+    }
+
+    pub fn update_smart_folder(&mut self, id: &str, name: &str, match_mode: &str, rules: Vec<Rule>) -> Result<()> {
+        let sf = self.meta.smart_folders.iter_mut().find(|s| s.id == id).ok_or_else(|| anyhow!("Smart folder not found"))?;
+        if !name.trim().is_empty() {
+            sf.name = name.trim().into();
+        }
+        sf.match_mode = if match_mode == "any" { "any" } else { "all" }.into();
+        sf.rules = Self::clean_rules(rules);
+        self.save_meta()
+    }
+
+    pub fn delete_smart_folder(&mut self, id: &str) -> Result<()> {
+        self.meta.smart_folders.retain(|s| s.id != id);
+        self.save_meta()
+    }
+
+    /// Fills in fingerprints for items imported before they existed.
+    pub fn ensure_hashes(&mut self) -> Result<usize> {
+        let mut changed = vec![];
+        for mut it in self.all_items(false)?.into_iter().chain(self.all_items(true)?) {
+            let dir = self.item_dir(&it.id);
+            let mut dirty = false;
+            if it.fhash.is_none() {
+                if let Ok(h) = hashing::file_hash(&dir.join(&it.file_name)) {
+                    it.fhash = Some(h);
+                    dirty = true;
+                }
+            }
+            if it.dhash.is_none() {
+                if let Some(img) = it.thumb.as_ref().and_then(|t| image::open(dir.join(t)).ok()) {
+                    it.dhash = Some(hashing::dhash(&img));
+                    dirty = true;
+                }
+            }
+            if dirty {
+                changed.push(it);
+            }
+        }
+        self.save_items(&changed)?;
+        Ok(changed.len())
+    }
+
+    /// Fingerprints of every item, including the Trash, so re-importing a
+    /// trashed file is still caught.
+    pub fn file_hashes(&mut self) -> Result<HashSet<String>> {
+        self.ensure_hashes()?;
+        Ok(self.all_items(false)?.into_iter().chain(self.all_items(true)?).filter_map(|i| i.fhash).collect())
+    }
+
+    /// Groups of identical files and, when `max_distance` > 0, visually similar
+    /// pictures (dHash Hamming distance up to `max_distance`).
+    pub fn duplicates(&mut self, max_distance: u32) -> Result<Vec<DupGroup>> {
+        self.ensure_hashes()?;
+        let items = self.all_items(false)?;
+        let n = items.len();
+        let mut parent: Vec<usize> = (0..n).collect();
+        fn find(p: &mut Vec<usize>, mut i: usize) -> usize {
+            while p[i] != i {
+                p[i] = p[p[i]];
+                i = p[i];
+            }
+            i
+        }
+        let union = |p: &mut Vec<usize>, a: usize, b: usize| {
+            let (ra, rb) = (find(p, a), find(p, b));
+            if ra != rb {
+                p[ra] = rb;
+            }
+        };
+        let mut by_hash: HashMap<&str, usize> = HashMap::new();
+        for (i, it) in items.iter().enumerate() {
+            if let Some(h) = it.fhash.as_deref() {
+                match by_hash.get(h) {
+                    Some(&j) => union(&mut parent, i, j),
+                    None => {
+                        by_hash.insert(h, i);
+                    }
+                }
+            }
+        }
+        if max_distance > 0 {
+            let visual: Vec<(usize, u64)> = items
+                .iter()
+                .enumerate()
+                .filter(|(_, it)| matches!(it.kind.as_str(), "image" | "video"))
+                .filter_map(|(i, it)| it.dhash.as_deref().and_then(|h| u64::from_str_radix(h, 16).ok()).map(|h| (i, h)))
+                // Flat images (one colour) all hash to zero; they aren't real matches.
+                .filter(|(_, h)| *h != 0)
+                .collect();
+            for a in 0..visual.len() {
+                for b in a + 1..visual.len() {
+                    if (visual[a].1 ^ visual[b].1).count_ones() <= max_distance {
+                        union(&mut parent, visual[a].0, visual[b].0);
+                    }
+                }
+            }
+        }
+        let mut groups: HashMap<usize, Vec<usize>> = HashMap::new();
+        for i in 0..n {
+            let r = find(&mut parent, i);
+            groups.entry(r).or_default().push(i);
+        }
+        let mut out: Vec<DupGroup> = groups
+            .into_values()
+            .filter(|g| g.len() > 1)
+            .map(|g| {
+                let mut its: Vec<Item> = g.into_iter().map(|i| items[i].clone()).collect();
+                its.sort_by(|a, b| {
+                    let px = |i: &Item| i.width as u64 * i.height as u64;
+                    px(b).cmp(&px(a)).then(b.size.cmp(&a.size)).then(a.created_at.cmp(&b.created_at))
+                });
+                let exact = its.iter().all(|i| i.fhash.is_some() && i.fhash == its[0].fhash);
+                DupGroup { reason: if exact { "exact" } else { "similar" }.into(), items: its }
+            })
+            .collect();
+        out.sort_by(|a, b| b.items.len().cmp(&a.items.len()).then(b.items[0].created_at.cmp(&a.items[0].created_at)));
+        Ok(out)
     }
 
     pub fn file_path(&self, id: &str) -> Result<PathBuf> {

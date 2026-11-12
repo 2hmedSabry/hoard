@@ -43,6 +43,12 @@ pub struct Item {
     pub thumb: Option<String>,
     #[serde(default)]
     pub duration: Option<f64>,
+    /// Exact-copy fingerprint (see hashing::file_hash).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fhash: Option<String>,
+    /// Picture fingerprint for near-duplicates (see hashing::dhash).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dhash: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -56,11 +62,38 @@ pub struct Folder {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
+pub struct Rule {
+    pub field: String,
+    pub op: String,
+    #[serde(default)]
+    pub value: String,
+}
+
+fn match_all() -> String {
+    "all".into()
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct SmartFolder {
+    pub id: String,
+    pub name: String,
+    /// "all" or "any"
+    #[serde(default = "match_all")]
+    pub match_mode: String,
+    #[serde(default)]
+    pub rules: Vec<Rule>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct LibraryMeta {
     pub name: String,
     pub version: u32,
     #[serde(default)]
     pub folders: Vec<Folder>,
+    #[serde(default)]
+    pub smart_folders: Vec<SmartFolder>,
     pub created_at: i64,
 }
 
@@ -76,6 +109,7 @@ pub struct LibraryInfo {
 pub struct Query {
     pub scope: String,
     pub folder_id: Option<String>,
+    pub smart_folder_id: Option<String>,
     pub tags: Vec<String>,
     pub kinds: Vec<String>,
     pub min_rating: u8,
@@ -105,6 +139,7 @@ pub struct Stats {
     pub untagged: i64,
     pub trash: i64,
     pub folders: std::collections::HashMap<String, i64>,
+    pub smart: std::collections::HashMap<String, i64>,
     pub tags: Vec<(String, i64)>,
 }
 
@@ -114,6 +149,16 @@ pub struct ImportProgress {
     pub done: usize,
     pub total: usize,
     pub failed: usize,
+    pub skipped: usize,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct DupGroup {
+    /// "exact" when every file is byte-identical, otherwise "similar".
+    pub reason: String,
+    /// Best copy to keep first: most pixels, then largest file, then oldest.
+    pub items: Vec<Item>,
 }
 
 pub fn now_ms() -> i64 {

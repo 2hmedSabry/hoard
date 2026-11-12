@@ -1,7 +1,9 @@
+mod hashing;
 mod import;
 mod library;
 mod model;
 mod palette;
+mod rules;
 
 use library::Library;
 use model::*;
@@ -122,6 +124,33 @@ fn delete_folder(st: State<AppState>, id: String) -> R<()> {
 }
 
 #[tauri::command]
+fn create_smart_folder(st: State<AppState>, name: String, match_mode: String, rules: Vec<Rule>) -> R<SmartFolder> {
+    with_lib(&st, |l| l.create_smart_folder(&name, &match_mode, rules))
+}
+
+#[tauri::command]
+fn update_smart_folder(st: State<AppState>, id: String, name: String, match_mode: String, rules: Vec<Rule>) -> R<()> {
+    with_lib(&st, |l| l.update_smart_folder(&id, &name, &match_mode, rules))
+}
+
+#[tauri::command]
+fn delete_smart_folder(st: State<AppState>, id: String) -> R<()> {
+    with_lib(&st, |l| l.delete_smart_folder(&id))
+}
+
+/// Can take a few seconds on a big library the first time (fingerprints are
+/// filled in for older items), so it runs off the main thread.
+#[tauri::command]
+async fn find_duplicates(app: AppHandle, max_distance: u32) -> R<Vec<DupGroup>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let st = app.state::<AppState>();
+        with_lib(&st, |l| l.duplicates(max_distance.min(16)))
+    })
+    .await
+    .map_err(err)?
+}
+
+#[tauri::command]
 fn rename_tag(st: State<AppState>, from: String, to: String) -> R<()> {
     with_lib(&st, |l| l.rename_tag(&from, &to))
 }
@@ -157,35 +186,49 @@ fn open_url(url: String) -> R<()> {
 /// Copies files into the library in batches so the grid fills in as it goes.
 #[tauri::command]
 async fn import_paths(app: AppHandle, paths: Vec<String>, folder_id: Option<String>) -> R<usize> {
-    let root = {
-        let st = app.state::<AppState>();
-        let g = st.lib.lock().map_err(err)?;
-        g.as_ref().map(|l| l.root.clone()).ok_or_else(|| "No library is open".to_string())?
-    };
     tauri::async_runtime::spawn_blocking(move || -> R<usize> {
+        let (root, known) = {
+            let st = app.state::<AppState>();
+            let mut g = st.lib.lock().map_err(err)?;
+            let lib = g.as_mut().ok_or_else(|| "No library is open".to_string())?;
+            (lib.root.clone(), lib.file_hashes().map_err(err)?)
+        };
+        let seen = std::sync::Mutex::new(known);
+        let skipped = AtomicUsize::new(0);
         let files = import::collect_files(&paths);
         let total = files.len();
         let items_dir = root.join("items");
         let done = AtomicUsize::new(0);
         let failed = AtomicUsize::new(0);
         let pool = rayon::ThreadPoolBuilder::new().num_threads(4).build().map_err(err)?;
-        let _ = app.emit("import-progress", ImportProgress { done: 0, total, failed: 0 });
+        let _ = app.emit("import-progress", ImportProgress { done: 0, total, failed: 0, skipped: 0 });
         let mut imported = 0;
         for chunk in files.chunks(24) {
             let items: Vec<Item> = pool.install(|| {
                 chunk
                     .par_iter()
                     .filter_map(|f| {
-                        let r = import::import_file(&items_dir, f, folder_id.as_deref());
-                        if r.is_err() {
-                            failed.fetch_add(1, Ordering::SeqCst);
+                        let r = import::import_file(&items_dir, f, folder_id.as_deref(), &seen);
+                        match &r {
+                            Err(_) => {
+                                failed.fetch_add(1, Ordering::SeqCst);
+                            }
+                            Ok(None) => {
+                                skipped.fetch_add(1, Ordering::SeqCst);
+                            }
+                            Ok(Some(_)) => {}
                         }
                         let d = done.fetch_add(1, Ordering::SeqCst) + 1;
                         let _ = app.emit(
                             "import-progress",
-                            ImportProgress { done: d, total, failed: failed.load(Ordering::SeqCst) },
+                            ImportProgress {
+                                done: d,
+                                total,
+                                failed: failed.load(Ordering::SeqCst),
+                                skipped: skipped.load(Ordering::SeqCst),
+                            },
                         );
-                        r.ok()
+                        r.ok().flatten()
                     })
                     .collect()
             });
@@ -226,6 +269,10 @@ pub fn run() {
             move_folder,
             delete_folder,
             rename_tag,
+            create_smart_folder,
+            update_smart_folder,
+            delete_smart_folder,
+            find_duplicates,
             rebuild_index,
             reveal_item,
             open_item,
@@ -251,7 +298,8 @@ mod tests {
 
         let files = import::collect_files(&[samples.clone()]);
         assert!(files.iter().all(|f| !f.to_string_lossy().contains("/.hidden/")), "hidden skipped");
-        let items: Vec<Item> = files.iter().map(|f| import::import_file(&lib.root.join("items"), f, None).unwrap()).collect();
+        let seen = std::sync::Mutex::new(std::collections::HashSet::new());
+        let items: Vec<Item> = files.iter().filter_map(|f| import::import_file(&lib.root.join("items"), f, None, &seen).unwrap()).collect();
         lib.index_items(&items).unwrap();
         for it in &items {
             println!("{:<12} {:<9} {:>5}x{:<5} thumb={:<10?} dur={:?} palette={:?}",
@@ -290,12 +338,39 @@ mod tests {
         assert_eq!(lib.empty_trash().unwrap(), 1);
         assert!(!lib.item_dir(&red).exists());
 
+        // Exact copies are skipped on re-import; a resized copy is a near-duplicate.
+        let again = import::collect_files(&[samples.clone()]);
+        let known = std::sync::Mutex::new(lib.file_hashes().unwrap());
+        let reimported: Vec<_> = again.iter().filter_map(|f| import::import_file(&lib.root.join("items"), f, None, &known).unwrap()).collect();
+        // Only the item deleted from the Trash above comes back.
+        assert_eq!(reimported.iter().map(|i| i.name.as_str()).collect::<Vec<_>>(), vec!["red-poster"], "exact duplicates skipped");
+        lib.index_items(&reimported).unwrap();
+        let groups = lib.duplicates(8).unwrap();
+        assert!(groups.iter().any(|g| g.reason == "similar" && g.items.iter().any(|i| i.name == "pattern") && g.items.iter().any(|i| i.name == "pattern-small")),
+            "resized copy found: {:?}", groups.iter().map(|g| g.items.iter().map(|i| i.name.clone()).collect::<Vec<_>>()).collect::<Vec<_>>());
+        assert_eq!(groups.iter().find(|g| g.items.iter().any(|i| i.name == "pattern")).unwrap().items[0].name, "pattern", "bigger copy listed first");
+        assert!(lib.duplicates(0).unwrap().is_empty(), "no exact copies in the library");
+
+        // Smart folders.
+        let rule = |f: &str, o: &str, v: &str| Rule { field: f.into(), op: o.into(), value: v.into() };
+        let big = lib.create_smart_folder("Wide images", "all", vec![rule("kind", "is", "image"), rule("width", "gte", "1000")]).unwrap();
+        let either = lib.create_smart_folder("Video or audio", "any", vec![rule("kind", "is", "video"), rule("kind", "is", "audio")]).unwrap();
+        fn names(lib: &Library, id: &str) -> Vec<String> { let mut v: Vec<String> = q(lib, |q| { q.scope = "smart".into(); q.smart_folder_id = Some(id.into()) }).into_iter().map(|i| i.name).collect(); v.sort(); v }
+        assert_eq!(names(&lib, &big.id), vec!["Blue Ocean", "pattern"]);
+        assert_eq!(names(&lib, &either.id), vec!["clip", "tone"]);
+        assert_eq!(lib.stats().unwrap().smart[&either.id], 2);
+        lib.update_smart_folder(&big.id, "Landscape", "all", vec![rule("orientation", "is", "landscape"), rule("name", "contains", "pattern")]).unwrap();
+        assert_eq!(names(&lib, &big.id), vec!["pattern", "pattern-small"]);
+        lib.delete_smart_folder(&either.id).unwrap();
+        assert_eq!(lib.meta.smart_folders.len(), 1);
+
         // Index is disposable: delete it and reopen.
         let root = lib.root.clone();
         drop(lib);
         for f in ["index.db", "index.db-wal", "index.db-shm"] { let _ = fs::remove_file(root.join(f)); }
         let lib = Library::open(&root).unwrap();
-        assert_eq!(lib.stats().unwrap().all, files.len() as i64 - 1);
+        assert_eq!(lib.stats().unwrap().all, files.len() as i64);
+        assert_eq!(lib.meta.smart_folders.len(), 1, "smart folders persist");
         println!("library at {}", root.display());
     }
 }

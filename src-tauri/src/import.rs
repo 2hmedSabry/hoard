@@ -1,5 +1,8 @@
 //! Copying files into the library and making thumbnails, dimensions and palettes.
+use crate::hashing;
 use crate::model::{new_id, now_ms, Item};
+use std::collections::HashSet;
+use std::sync::Mutex;
 use crate::palette;
 use anyhow::{anyhow, Result};
 use image::{codecs::jpeg::JpegEncoder, DynamicImage, ImageDecoder, ImageReader};
@@ -66,7 +69,13 @@ fn safe_name(name: &str) -> String {
     }
 }
 
-pub fn import_file(items_dir: &Path, src: &Path, folder: Option<&str>) -> Result<Item> {
+/// Imports one file. Returns `Ok(None)` when an exact copy is already in the
+/// library (or earlier in this import), using `seen` as the set of file hashes.
+pub fn import_file(items_dir: &Path, src: &Path, folder: Option<&str>, seen: &Mutex<HashSet<String>>) -> Result<Option<Item>> {
+    let fhash = hashing::file_hash(src)?;
+    if !seen.lock().map_err(|_| anyhow!("lock poisoned"))?.insert(fhash.clone()) {
+        return Ok(None);
+    }
     let id = new_id();
     let dir = items_dir.join(&id);
     fs::create_dir_all(&dir)?;
@@ -98,17 +107,24 @@ pub fn import_file(items_dir: &Path, src: &Path, folder: Option<&str>) -> Result
             deleted: false,
             thumb: None,
             duration: None,
+            fhash: Some(fhash.clone()),
+            dhash: None,
         };
         if let Some(img) = make_thumb(&dst, &dir, &mut item) {
             item.palette = palette::extract(&img);
+            item.dhash = Some(hashing::dhash(&img));
         }
         crate::library::write_json(&dir.join("item.json"), &item)?;
         Ok(item)
     })();
     if res.is_err() {
         let _ = fs::remove_dir_all(&dir);
+        // Let a later retry of the same file through.
+        if let Ok(mut s) = seen.lock() {
+            s.remove(&fhash);
+        }
     }
-    res
+    res.map(Some)
 }
 
 /// Writes `thumb.jpg` (or `thumb.png` when transparent) and fills in size info.
