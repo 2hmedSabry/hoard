@@ -1,5 +1,5 @@
 // Keyboard shortcuts that people can change. Stored per computer.
-export type Action = "preview" | "open" | "trash" | "selectAll" | "clear" | "next" | "prev" | "up" | "down" | "first" | "last" | "rename" | "zoomIn" | "zoomOut" | "search" | "quickSwitch" | "import" | "slideshow";
+export type Action = "preview" | "open" | "trash" | "selectAll" | "clear" | "next" | "prev" | "up" | "down" | "first" | "last" | "rename" | "zoomIn" | "zoomOut" | "search" | "quickSwitch" | "import" | "slideshow" | "undo";
 
 export const DEFAULTS: Record<Action, string> = {
   preview: "Space",
@@ -20,6 +20,7 @@ export const DEFAULTS: Record<Action, string> = {
   quickSwitch: "Mod+K",
   import: "Mod+I",
   slideshow: "P",
+  undo: "Mod+Z",
 };
 
 export const LABELS: Record<Action, string> = {
@@ -41,6 +42,7 @@ export const LABELS: Record<Action, string> = {
   quickSwitch: "Go to folder or tag",
   import: "Import files",
   slideshow: "Slideshow (in preview)",
+  undo: "Undo last change",
 };
 
 const isMac = /Mac|iPhone|iPad/.test(navigator.platform);

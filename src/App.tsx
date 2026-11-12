@@ -1,4 +1,4 @@
-import { t as tr, useLang } from "./i18n";
+import { t as tr, useLang, count } from "./i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
@@ -13,6 +13,8 @@ import Inspector from "./components/Inspector";
 import Preview from "./components/Preview";
 import Duplicates from "./components/Duplicates";
 import QuickSwitch from "./components/QuickSwitch";
+import ContextMenu, { type MenuItem } from "./components/ContextMenu";
+import { flattenFolders } from "./api";
 import { is as isKey, isWithShift } from "./shortcuts";
 import PluginHost, { type PluginInfo } from "./components/PluginHost";
 
@@ -40,6 +42,9 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [switching, setSwitching] = useState(false);
+  const [ctx, setCtx] = useState<{ x: number; y: number; ids: string[] } | null>(null);
+  // Last change that can be undone (Cmd+Z or the toast's Undo button).
+  const [undo, setUndo] = useState<{ label: string; run: () => Promise<void> } | null>(null);
   const [cols, setCols] = useState(1);
   const [focusId, setFocusId] = useState<string | null>(null);
   // Messages for screen readers (polite live region).
@@ -121,16 +126,35 @@ export default function App() {
     return () => { un.forEach((p) => p.then((f) => f())); };
   }, []);
 
-  const update = useCallback(async (ids: string[], patch: ItemPatch) => {
+  const update = useCallback(async (ids: string[], patch: ItemPatch, label?: string) => {
     try {
+      // Remember the details before the change so it can be undone.
+      const before = new Map<string, Item>();
+      for (const it of items) if (ids.includes(it.id)) before.set(it.id, it);
       const changed = await api.update(ids, patch);
+      if (before.size) {
+        setUndo({
+          label: label ?? tr("Edit"),
+          run: async () => {
+            for (const now of changed) {
+              const was = before.get(now.id);
+              if (!was) continue;
+              await api.update([now.id], {
+                name: was.name, rating: was.rating, note: was.note, url: was.url,
+                addTags: was.tags.filter((t) => !now.tags.includes(t)), removeTags: now.tags.filter((t) => !was.tags.includes(t)),
+                addFolders: was.folders.filter((f) => !now.folders.includes(f)), removeFolders: now.folders.filter((f) => !was.folders.includes(f)),
+              });
+            }
+          },
+        });
+      }
       const map = new Map(changed.map((c) => [c.id, c]));
       setItems((list) => list.map((i) => map.get(i.id) ?? i));
       api.stats().then(setStats).catch(fail);
       // Folder/tag membership can change what this view shows.
       if (patch.addFolders || patch.removeFolders || patch.addTags || patch.removeTags) refresh();
     } catch (e) { fail(e); }
-  }, [refresh, fail]);
+  }, [refresh, fail, items]);
 
   const trash = useCallback(async (ids: string[], trashed: boolean) => {
     if (!ids.length) return;
@@ -138,6 +162,8 @@ export default function App() {
       await api.setTrashed(ids, trashed);
       setSelected(new Set());
       refresh();
+      setUndo({ label: trashed ? tr("Move to Trash") : tr("Restore"), run: () => api.setTrashed(ids, !trashed) });
+      setNotice(trashed ? tr("Moved {what} to the Trash.", { what: count(ids.length, "1 item", "{n} items") }) : tr("Restored {what}.", { what: count(ids.length, "1 item", "{n} items") }));
     } catch (e) { fail(e); }
   }, [refresh, fail]);
 
@@ -176,6 +202,7 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector(".modal-back")) return; // dialogs handle their own keys
       if (isKey(e, "quickSwitch")) { e.preventDefault(); setSwitching(true); return; }
+      if (isKey(e, "undo") && undo && !(e.target as HTMLElement).closest("input, textarea")) { e.preventDefault(); runUndo(); return; }
       if (isKey(e, "import")) { e.preventDefault(); pickImport(false); return; }
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, select, [contenteditable]")) return;
@@ -216,7 +243,42 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [items, selected, anchor, focusId, cols, previewId, query.scope, trash, pickImport]);
+  }, [items, selected, anchor, focusId, cols, previewId, query.scope, trash, pickImport, undo]); // eslint-disable-line
+
+  const runUndo = async () => {
+    if (!undo) return;
+    const u = undo;
+    setUndo(null);
+    try { await u.run(); setNotice(tr("Undid: {what}", { what: u.label })); refresh(); } catch (e) { fail(e); }
+  };
+
+  const menuFor = (ids: string[]): MenuItem[] => {
+    const its = items.filter((i) => ids.includes(i.id));
+    const one = its.length === 1 ? its[0] : null;
+    const inTrash = query.scope === "trash";
+    const images = its.filter((i) => ["jpg", "jpeg", "png", "gif", "webp", "bmp", "tif", "tiff"].includes(i.ext)).map((i) => i.id);
+    const folders = lib ? flattenFolders(lib.meta.folders).filter(({ f }) => !f.lock) : [];
+    const list: MenuItem[] = [
+      { label: tr("Preview (Space)"), run: () => setPreviewId(ids[0]) },
+    ];
+    if (one) list.push({ label: tr("Open in default app"), run: () => api.open(one.id).catch(fail) }, { label: /Mac/.test(navigator.platform) ? tr("Show in Finder") : tr("Show in folder"), run: () => api.reveal(one.id).catch(fail) });
+    list.push("sep");
+    for (const n of [5, 4, 3, 0]) list.push({ label: n ? "★".repeat(n) : tr("Clear rating"), run: () => update(ids, { rating: n }, tr("Rating")) });
+    if (folders.length) {
+      list.push("sep");
+      for (const { f, depth } of folders.slice(0, 12)) list.push({ label: "\u00a0\u00a0".repeat(depth) + tr("Add to “{name}”", { name: f.name }), run: () => update(ids, { addFolders: [f.id] }, tr("Add to folder…")) });
+    }
+    if (images.length) {
+      list.push("sep",
+        { label: tr("Rotate right"), run: () => api.transformItems(images, "cw").then(refresh).catch(fail) },
+        { label: tr("Rotate left"), run: () => api.transformItems(images, "ccw").then(refresh).catch(fail) });
+    }
+    if (one && ["image", "video", "document"].includes(one.kind) && one.analyzed) list.push({ label: tr("Find similar"), run: () => setQuery((q) => ({ ...q, scope: "similar", similarTo: one.id, folderId: null, smartFolderId: null })) });
+    list.push("sep", inTrash
+      ? { label: tr("Restore"), run: () => trash(ids, false) }
+      : { label: tr("Move to Trash"), run: () => trash(ids, true), danger: true });
+    return list;
+  };
 
   if (booting) return <div className="boot" />;
   if (!lib) return <Welcome onOpen={(l) => { setLib(l); setQuery(DEFAULT_QUERY); }} error={error} setError={setError} />;
@@ -239,6 +301,12 @@ export default function App() {
           root={lib.root} items={items} selected={selected} thumbSize={thumbSize}
           onSelect={select} onClear={() => setSelected(new Set())}
           onOpen={(id) => setPreviewId(id)} emptyHint={query} onCols={setCols} focusId={focusId}
+          onSelectMany={(ids, add) => setSelected((cur) => new Set(add ? [...cur, ...ids] : ids))}
+          onContext={(id, x, y) => {
+            const ids = selected.has(id) ? [...selected] : [id];
+            if (!selected.has(id)) { setSelected(new Set([id])); setAnchor(id); }
+            setCtx({ x, y, ids });
+          }}
         />
         </>}
         {progress && (
@@ -269,7 +337,14 @@ export default function App() {
           onChanged={refresh} onNotice={setNotice} onClose={() => setPlugin(null)} />
       )}
       <div className="sr-only" role="status" aria-live="polite">{spoken || notice || ""}</div>
-      {notice && <div className="toast ok" onClick={() => setNotice(null)}><span>{notice}</span></div>}
+      {notice && (
+        <div className="toast ok" role="status">
+          <span>{notice}</span>
+          {undo && <button className="link" onClick={runUndo}>{tr("Undo")}</button>}
+          <button className="icon-btn" aria-label={tr("Dismiss")} onClick={() => setNotice(null)}>×</button>
+        </div>
+      )}
+      {ctx && <ContextMenu x={ctx.x} y={ctx.y} items={menuFor(ctx.ids)} onClose={() => setCtx(null)} />}
       {error && (
         <div className="toast" onClick={() => setError(null)}>
           <span>{error}</span><button className="link">{tr("Dismiss")}</button>

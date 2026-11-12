@@ -9,14 +9,16 @@ type Props = {
   root: string; items: Item[]; selected: Set<string>; thumbSize: number;
   onSelect: (id: string, e: React.MouseEvent) => void; onClear: () => void; onOpen: (id: string) => void; emptyHint: Query;
   onCols: (n: number) => void; focusId: string | null;
+  onSelectMany: (ids: string[], add: boolean) => void;
+  onContext: (id: string, x: number, y: number) => void;
 };
 
 const GAP = 14;
 const LABEL = 40;
 
-const Tile = memo(function Tile({ root, item, size, selected, selectedIds, onSelect, onOpen }: {
+const Tile = memo(function Tile({ root, item, size, selected, selectedIds, onSelect, onOpen, onContext }: {
   root: string; item: Item; size: number; selected: boolean; selectedIds: Set<string>;
-  onSelect: Props["onSelect"]; onOpen: Props["onOpen"];
+  onSelect: Props["onSelect"]; onOpen: Props["onOpen"]; onContext: Props["onContext"];
 }) {
   const src = thumbUrl(root, item);
   const [failed, setFailed] = useState(false);
@@ -27,6 +29,7 @@ const Tile = memo(function Tile({ root, item, size, selected, selectedIds, onSel
       className={`tile${selected ? " selected" : ""}`} style={{ width: size }}
       onClick={(e) => { e.stopPropagation(); onSelect(item.id, e); }}
       onDoubleClick={() => onOpen(item.id)}
+      onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); onContext(item.id, e.clientX, e.clientY); }}
       onMouseDown={(e) => {
         const ids = () => (selectedIds.has(item.id) ? [...selectedIds] : [item.id]);
         beginDrag(e, () => ({ kind: "items", ids: ids() }), () => (ids().length > 1 ? `${ids().length} items` : item.name));
@@ -48,7 +51,9 @@ const Tile = memo(function Tile({ root, item, size, selected, selectedIds, onSel
   );
 });
 
-export default function Grid({ root, items, selected, thumbSize, onSelect, onClear, onOpen, emptyHint, onCols, focusId }: Props) {
+export default function Grid({ root, items, selected, thumbSize, onSelect, onClear, onOpen, emptyHint, onCols, focusId, onSelectMany, onContext }: Props) {
+  const [band, setBand] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
+  const banded = useRef(false);
   const scroller = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(800);
 
@@ -101,15 +106,42 @@ export default function Grid({ root, items, selected, thumbSize, onSelect, onCle
   }
 
   return (
-    <div className="grid" ref={scroller} onClick={onClear} role="listbox" aria-multiselectable="true"
+    <div className="grid" ref={scroller} onClick={() => { if (banded.current) { banded.current = false; return; } onClear(); }}
+      onMouseDown={(e) => {
+        // Drag on empty space to select with a rectangle (Cmd/Shift adds to the selection).
+        if (e.button !== 0 || (e.target as HTMLElement).closest(".tile")) return;
+        const box = scroller.current!.getBoundingClientRect();
+        const sx = e.clientX - box.left, sy = e.clientY - box.top + scroller.current!.scrollTop;
+        const add = e.metaKey || e.ctrlKey || e.shiftKey;
+        const start = new Set(add ? selected : []);
+        const move = (ev: MouseEvent) => {
+          const x = ev.clientX - box.left, y = ev.clientY - box.top + scroller.current!.scrollTop;
+          if (Math.hypot(x - sx, y - sy) < 4) return;
+          banded.current = true;
+          const r = { x0: Math.min(sx, x), y0: Math.min(sy, y), x1: Math.max(sx, x), y1: Math.max(sy, y) };
+          setBand(r);
+          const hit: string[] = [];
+          scroller.current!.querySelectorAll<HTMLElement>(".tile").forEach((t) => {
+            const tr2 = t.getBoundingClientRect();
+            const tx0 = tr2.left - box.left, ty0 = tr2.top - box.top + scroller.current!.scrollTop;
+            if (tx0 < r.x1 && tx0 + tr2.width > r.x0 && ty0 < r.y1 && ty0 + tr2.height > r.y0) hit.push(t.id.slice(5));
+          });
+          onSelectMany([...start, ...hit], false);
+        };
+        const up = () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); setBand(null); };
+        window.addEventListener("mousemove", move);
+        window.addEventListener("mouseup", up);
+      }}
+      role="listbox" aria-multiselectable="true"
       aria-label={tr("Items")} tabIndex={0}
       onFocus={(e) => { if (e.target === e.currentTarget && items[0] && !selected.size) document.getElementById("tile-" + items[0].id)?.focus(); }}>
       <div style={{ height: v.getTotalSize() + GAP, position: "relative" }}>
+        {band && <div className="band" style={{ left: band.x0, top: band.y0, width: band.x1 - band.x0, height: band.y1 - band.y0 }} />}
         {v.getVirtualItems().map((r) => (
           <div key={r.key} className="grid-row" style={{ transform: `translateY(${r.start + GAP}px)`, gap: GAP, paddingInlineStart: GAP }}>
             {items.slice(r.index * cols, r.index * cols + cols).map((it) => (
               <Tile key={it.id} root={root} item={it} size={size} selected={selected.has(it.id)}
-                selectedIds={selected} onSelect={onSelect} onOpen={onOpen} />
+                selectedIds={selected} onSelect={onSelect} onOpen={onOpen} onContext={onContext} />
             ))}
           </div>
         ))}

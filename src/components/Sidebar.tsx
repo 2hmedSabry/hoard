@@ -144,6 +144,7 @@ export default function Sidebar(p: Props) {
           style={{ paddingInlineStart: 8 + depth * 14 }} data-drop={f.id}
           onMouseDown={(e) => { if (!(e.target as HTMLElement).closest("input, .more, .twisty, .menu")) beginDrag(e, () => ({ kind: "folder", id: f.id }), () => f.name); }}
           onClick={() => (f.lock && !unlocked.has(f.id) ? setPwPrompt({ mode: "unlock", folder: f }) : go("folder", f.id))}
+          onContextMenu={(e) => { e.preventDefault(); setMenu(f.id); }}
           onDoubleClick={() => setEditing({ kind: "rename", id: f.id })}
         >
           <span className={`twisty${f.children.length ? "" : " empty"}${isOpen ? " open" : ""}`}

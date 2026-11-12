@@ -24,6 +24,7 @@ Built with [Tauri 2](https://tauri.app), Rust and React.
 - **Plugins.** Add your own tools as a folder with `plugin.json` and one HTML page. Plugins run in a sandbox and get a small `hoard` API for the selection, search and (with permission) editing details. Two examples are included; see [plugins/README.md](plugins/README.md).
 - **Find.** Search also matches inside Chinese, Japanese and Korean text. Instant prefix search across names, tags, notes and links; filters for type, tags, rating and colour. Colours are extracted from every item, so you can find "everything blue".
 - **Preview.** Full-window preview with arrow-key navigation and a slideshow (P). Videos play; audio shows a waveform you can click to seek; fonts show an editable sample at several sizes with Latin and Arabic glyphs; PDFs, text, Markdown, CSV and JSON open inline.
+- **Fast to use, accessible.** Arrow keys move through the grid (Shift extends), right-click menus, drag a box to select, Cmd+Z undoes trash, tag, folder, rating and edit changes. VoiceOver-friendly labels, visible keyboard focus, WCAG AA colour contrast and reduced-motion support.
 - **Languages.** English and Arabic, with a full right-to-left layout. Pick the language and Dark / Light / System appearance from the library menu.
 - **Trash.** Deleted items can be restored until you empty the Trash.
 
