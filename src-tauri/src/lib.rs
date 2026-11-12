@@ -3,6 +3,7 @@ mod hashing;
 mod import;
 mod library;
 mod model;
+mod pack;
 mod palette;
 mod rules;
 mod watch;
@@ -277,6 +278,36 @@ async fn transform_items(app: AppHandle, ids: Vec<String>, op: String) -> R<Vec<
 }
 
 #[tauri::command]
+async fn export_pack(app: AppHandle, ids: Vec<String>, dest: String) -> R<usize> {
+    tauri::async_runtime::spawn_blocking(move || with_lib(&app.state::<AppState>(), |l| pack::export(l, &ids, &PathBuf::from(&dest))))
+        .await
+        .map_err(err)?
+}
+
+#[tauri::command]
+async fn export_files(app: AppHandle, ids: Vec<String>, dest: String) -> R<usize> {
+    tauri::async_runtime::spawn_blocking(move || with_lib(&app.state::<AppState>(), |l| pack::export_files(l, &ids, &PathBuf::from(&dest))))
+        .await
+        .map_err(err)?
+}
+
+/// Returns (added, skipped as duplicates).
+#[tauri::command]
+async fn import_pack(app: AppHandle, path: String) -> R<(usize, usize)> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let work = app.path().app_cache_dir().map_err(err)?.join("pack").join(new_id());
+        let r = with_lib(&app.state::<AppState>(), |l| pack::import(l, &PathBuf::from(&path), &work));
+        let _ = fs::remove_dir_all(&work);
+        if r.is_ok() {
+            let _ = app.emit("items-imported", 0);
+        }
+        r
+    })
+    .await
+    .map_err(err)?
+}
+
+#[tauri::command]
 fn add_watched_folder(st: State<AppState>, path: String, folder_id: Option<String>) -> R<()> {
     with_lib(&st, |l| l.add_watched(&path, folder_id))
 }
@@ -330,6 +361,9 @@ pub fn run() {
             import_paths,
             add_watched_folder,
             rename_items,
+            export_pack,
+            export_files,
+            import_pack,
             transform_items,
             update_watched_folder,
             remove_watched_folder
@@ -430,6 +464,21 @@ mod tests {
         lib.rename_many(&[(pat.id.clone(), "Pattern 001".into())]).unwrap();
         assert_eq!(lib.get(&pat.id).unwrap().name, "Pattern 001");
         assert!(lib.transform(&[q(&lib, |q| q.kinds = vec!["audio".into()])[0].id.clone()], "cw").is_err(), "audio can't rotate");
+
+        // Packs: export two items, import them into a fresh library with their details.
+        let two: Vec<String> = q(&lib, |_| {}).into_iter().filter(|i| i.name == "Blue Ocean" || i.name == "logo").map(|i| i.id).collect();
+        lib.update_items(&two, &ItemPatch { add_tags: vec!["packed".into()], rating: Some(3), ..Default::default() }).unwrap();
+        let pack_path = tmp.join("Refs.hoardpack");
+        assert_eq!(pack::export(&lib, &two, &pack_path).unwrap(), 2);
+        let mut other = Library::create(&tmp, "Other").unwrap();
+        assert_eq!(pack::import(&mut other, &pack_path, &tmp.join("work")).unwrap(), (2, 0));
+        let got = other.query(&Query { scope: "all".into(), ..Default::default() }).unwrap();
+        assert!(got.iter().all(|i| i.tags.contains(&"packed".to_string()) && i.rating == 3 && i.folders.len() == 1));
+        assert_eq!(other.meta.folders[0].name, "Refs");
+        assert_eq!(pack::import(&mut other, &pack_path, &tmp.join("work2")).unwrap(), (0, 2), "second import skips copies");
+        let out = tmp.join("exported");
+        assert_eq!(pack::export_files(&lib, &two, &out).unwrap(), 2);
+        assert!(out.join("Blue Ocean.jpg").exists());
 
         // Index is disposable: delete it and reopen.
         let root = lib.root.clone();

@@ -24,6 +24,7 @@ anyhow = "1"
 tiny_http = "0.12"
 ureq = "2"
 base64 = "0.22"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [profile.release]
 opt-level = 3

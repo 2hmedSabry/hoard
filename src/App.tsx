@@ -33,6 +33,8 @@ export default function App() {
   const [progress, setProgress] = useState<ImportProgress | null>(null);
   const [dropping, setDropping] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  useEffect(() => { if (!notice) return; const t = setTimeout(() => setNotice(null), 3500); return () => clearTimeout(t); }, [notice]);
   const seq = useRef(0);
 
   const fail = useCallback((e: unknown) => setError(String(e)), []);
@@ -71,14 +73,21 @@ export default function App() {
   const importPaths = useCallback(async (paths: string[]) => {
     if (!lib || !paths.length) return;
     const folder = query.scope === "folder" ? query.folderId : null;
+    const packs = paths.filter((p) => p.toLowerCase().endsWith(".hoardpack"));
+    const rest = paths.filter((p) => !p.toLowerCase().endsWith(".hoardpack"));
     try {
-      await api.importPaths(paths, folder);
+      for (const pk of packs) {
+        const [added, skipped] = await api.importPack(pk);
+        setNotice(`Pack imported: ${added} added${skipped ? `, ${skipped} already in library` : ""}.`);
+        reloadLib();
+      }
+      if (rest.length) await api.importPaths(rest, folder);
     } catch (e) { fail(e); }
     finally {
       setTimeout(() => setProgress(null), 1200);
       refresh();
     }
-  }, [lib, query.scope, query.folderId, refresh, fail]);
+  }, [lib, query.scope, query.folderId, refresh, fail, reloadLib]);
 
   const importRef = useRef(importPaths);
   importRef.current = importPaths;
@@ -203,7 +212,7 @@ export default function App() {
       <Inspector
         root={lib.root} items={selectedItems} stats={stats} folders={lib.meta.folders}
         inTrash={query.scope === "trash"} total={stats?.all ?? 0}
-        onUpdate={update} onTrash={trash} onChanged={refresh}
+        onUpdate={update} onTrash={trash} onChanged={refresh} onNotice={setNotice}
         onColor={(c) => setQuery((q) => ({ ...q, color: c }))}
         onTag={(t) => setQuery((q) => ({ ...q, tags: q.tags.includes(t) ? q.tags : [...q.tags, t] }))}
         onPreview={(id) => setPreviewId(id)} fail={fail}
@@ -212,6 +221,7 @@ export default function App() {
         <Preview root={lib.root} items={items} id={previewId} onNavigate={(id) => { setPreviewId(id); setSelected(new Set([id])); setAnchor(id); }}
           onClose={() => setPreviewId(null)} />
       )}
+      {notice && <div className="toast ok" onClick={() => setNotice(null)}><span>{notice}</span></div>}
       {error && (
         <div className="toast" onClick={() => setError(null)}>
           <span>{error}</span><button className="link">Dismiss</button>

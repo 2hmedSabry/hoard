@@ -137,6 +137,11 @@ export default function Sidebar(p: Props) {
             <button onClick={() => { setLibMenu(false); switchLibrary(); }}>Open library…</button>
             <button onClick={() => { setLibMenu(false); setEditing({ kind: "library" }); }}>New library…</button>
             <button onClick={() => { setLibMenu(false); run(async () => { await api.rebuildIndex(); }); }}>Rebuild search index</button>
+            <button onClick={async () => {
+              setLibMenu(false);
+              const f = await openDialog({ title: "Import a Hoard pack", filters: [{ name: "Hoard pack", extensions: ["hoardpack"] }] });
+              if (typeof f === "string") run(() => api.importPack(f));
+            }}>Import pack…</button>
             <button onClick={() => { setLibMenu(false); setWatching(true); }}>Watched folders…</button>
             <button onClick={() => { setLibMenu(false); setConnect(true); }}>Browser extension…</button>
             <div className="menu-label">Appearance</div>

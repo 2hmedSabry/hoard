@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { save as saveDialog, open as openDialog } from "@tauri-apps/plugin-dialog";
 import { api, flattenFolders, formatDuration, formatSize, thumbUrl } from "../api";
 import type { Folder, Item, ItemPatch, Stats } from "../types";
 import Stars from "./Stars";
@@ -8,6 +9,7 @@ type Props = {
   root: string; items: Item[]; stats: Stats | null; folders: Folder[]; inTrash: boolean; total: number;
   onUpdate: (ids: string[], patch: ItemPatch) => void; onTrash: (ids: string[], trashed: boolean) => void;
   onChanged: () => void;
+  onNotice: (msg: string) => void;
   onColor: (hex: string) => void; onTag: (t: string) => void; onPreview: (id: string) => void; fail: (e: unknown) => void;
 };
 
@@ -64,6 +66,18 @@ export default function Inspector(p: Props) {
         <button disabled={busy} title="Flip horizontally" onClick={() => transform("flip_h")}>⇋</button>
         <button disabled={busy} title="Flip vertically" onClick={() => transform("flip_v")}>⇵</button>
       </>}
+      <button title="Save these items as a .hoardpack to share or move to another library" onClick={async () => {
+        const dest = await saveDialog({ title: "Export pack", defaultPath: `${items.length === 1 ? items[0].name : "Hoard pack"}.hoardpack`, filters: [{ name: "Hoard pack", extensions: ["hoardpack"] }] });
+        if (!dest) return;
+        setBusy(true);
+        try { const n = await api.exportPack(items.map((i) => i.id), dest); p.onNotice(`Exported ${n} item${n > 1 ? "s" : ""} to a pack.`); } catch (e) { p.fail(e); } finally { setBusy(false); }
+      }}>Export pack…</button>
+      <button title="Copy the original files to a folder" onClick={async () => {
+        const dest = await openDialog({ directory: true, title: "Copy files to…" });
+        if (typeof dest !== "string") return;
+        setBusy(true);
+        try { const n = await api.exportFiles(items.map((i) => i.id), dest); p.onNotice(`Copied ${n} file${n > 1 ? "s" : ""}.`); } catch (e) { p.fail(e); } finally { setBusy(false); }
+      }}>Copy files to…</button>
       <button onClick={() => setRenaming(true)}>Rename{items.length > 1 ? "…" : " with pattern…"}</button>
       {renaming && (
         <BatchRename items={items} onClose={() => setRenaming(false)}

@@ -15,6 +15,7 @@ Built with [Tauri 2](https://tauri.app), Rust and React.
 - **Duplicates.** Exact copies are skipped on import. A review screen finds identical files and resized or re-saved pictures, suggests the best copy to keep, and moves the rest to the Trash while keeping their tags, folders and notes.
 - **Browser extension.** Save images, videos and screenshots from Chrome, Edge, Brave or Arc with a right-click, or pick several images on a page at once. See [extension/README.md](extension/README.md).
 - **Edit in place.** Batch rename with patterns (`{name}`, `{n:3}`, `{date}`, `{w}×{h}` and more, plus find and replace). Rotate and flip images; thumbnails, sizes and colours update automatically.
+- **Packs and export.** Share items as a `.hoardpack` (files plus tags, ratings, notes and links) and import packs from the menu or by dropping them in. Copy originals out to any folder with tidy names.
 - **Find.** Instant prefix search across names, tags, notes and links; filters for type, tags, rating and colour. Colours are extracted from every item, so you can find "everything blue".
 - **Preview.** Full-window preview with arrow-key navigation, video and audio playback, and PDF viewing.
 - **Trash.** Deleted items can be restored until you empty the Trash.
