@@ -265,6 +265,18 @@ async fn import_paths(app: AppHandle, paths: Vec<String>, folder_id: Option<Stri
 }
 
 #[tauri::command]
+fn rename_items(st: State<AppState>, names: Vec<(String, String)>) -> R<()> {
+    with_lib(&st, |l| l.rename_many(&names))
+}
+
+#[tauri::command]
+async fn transform_items(app: AppHandle, ids: Vec<String>, op: String) -> R<Vec<Item>> {
+    tauri::async_runtime::spawn_blocking(move || with_lib(&app.state::<AppState>(), |l| l.transform(&ids, &op)))
+        .await
+        .map_err(err)?
+}
+
+#[tauri::command]
 fn add_watched_folder(st: State<AppState>, path: String, folder_id: Option<String>) -> R<()> {
     with_lib(&st, |l| l.add_watched(&path, folder_id))
 }
@@ -317,6 +329,8 @@ pub fn run() {
             regenerate_api_token,
             import_paths,
             add_watched_folder,
+            rename_items,
+            transform_items,
             update_watched_folder,
             remove_watched_folder
         ])
@@ -406,6 +420,16 @@ mod tests {
         assert_eq!(names(&lib, &big.id), vec!["pattern", "pattern-small"]);
         lib.delete_smart_folder(&either.id).unwrap();
         assert_eq!(lib.meta.smart_folders.len(), 1);
+
+        // Rotate a 1280x720 image: it becomes 720x1280 and its fingerprint changes.
+        let pat = q(&lib, |q| q.text = Some("pattern".into())).into_iter().find(|i| i.name == "pattern").unwrap();
+        let rotated = lib.transform(&[pat.id.clone()], "cw").unwrap().remove(0);
+        assert_eq!((rotated.width, rotated.height), (720, 1280));
+        assert_ne!(rotated.fhash, pat.fhash);
+        assert!(rotated.thumb.is_some());
+        lib.rename_many(&[(pat.id.clone(), "Pattern 001".into())]).unwrap();
+        assert_eq!(lib.get(&pat.id).unwrap().name, "Pattern 001");
+        assert!(lib.transform(&[q(&lib, |q| q.kinds = vec!["audio".into()])[0].id.clone()], "cw").is_err(), "audio can't rotate");
 
         // Index is disposable: delete it and reopen.
         let root = lib.root.clone();

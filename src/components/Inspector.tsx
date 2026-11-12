@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { api, flattenFolders, formatDuration, formatSize, thumbUrl } from "../api";
 import type { Folder, Item, ItemPatch, Stats } from "../types";
 import Stars from "./Stars";
+import BatchRename from "./BatchRename";
 
 type Props = {
   root: string; items: Item[]; stats: Stats | null; folders: Folder[]; inTrash: boolean; total: number;
   onUpdate: (ids: string[], patch: ItemPatch) => void; onTrash: (ids: string[], trashed: boolean) => void;
+  onChanged: () => void;
   onColor: (hex: string) => void; onTag: (t: string) => void; onPreview: (id: string) => void; fail: (e: unknown) => void;
 };
 
@@ -43,9 +45,32 @@ export default function Inspector(p: Props) {
   const one = items.length === 1 ? items[0] : null;
 
   const [name, setName] = useState("");
+  const [renaming, setRenaming] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
   const [url, setUrl] = useState("");
   useEffect(() => { setName(one?.name ?? ""); setNote(one?.note ?? ""); setUrl(one?.url ?? ""); }, [one?.id, one?.modifiedAt]); // eslint-disable-line
+
+  const images = items.filter((i) => i.kind === "image" && !["svg", "psd", "heic", "heif", "avif", "raw", "exr", "hdr"].includes(i.ext));
+  const transform = async (op: "cw" | "ccw" | "flip_h" | "flip_v") => {
+    setBusy(true);
+    try { await api.transformItems(images.map((i) => i.id), op); p.onChanged(); } catch (e) { p.fail(e); } finally { setBusy(false); }
+  };
+  const tools = (
+    <div className="tool-row">
+      {images.length > 0 && <>
+        <button disabled={busy} title="Rotate left" onClick={() => transform("ccw")}>⟲</button>
+        <button disabled={busy} title="Rotate right" onClick={() => transform("cw")}>⟳</button>
+        <button disabled={busy} title="Flip horizontally" onClick={() => transform("flip_h")}>⇋</button>
+        <button disabled={busy} title="Flip vertically" onClick={() => transform("flip_v")}>⇵</button>
+      </>}
+      <button onClick={() => setRenaming(true)}>Rename{items.length > 1 ? "…" : " with pattern…"}</button>
+      {renaming && (
+        <BatchRename items={items} onClose={() => setRenaming(false)}
+          onApply={async (names) => { setRenaming(false); try { await api.renameItems(names); p.onChanged(); } catch (e) { p.fail(e); } }} />
+      )}
+    </div>
+  );
 
   if (!items.length) {
     return (
@@ -75,6 +100,7 @@ export default function Inspector(p: Props) {
           })}
         </div>
         <h3>{items.length} items selected</h3>
+        {tools}
         <section>
           <label>Rating</label>
           <Stars value={items.every((i) => i.rating === items[0].rating) ? items[0].rating : 0} onChange={(r) => p.onUpdate(ids, { rating: r })} />
@@ -168,6 +194,7 @@ export default function Inspector(p: Props) {
         </dl>
       </section>
 
+      {tools}
       <div className="actions">
         <button onClick={() => api.open(one.id).catch(p.fail)}>Open</button>
         <button onClick={() => api.reveal(one.id).catch(p.fail)}>Show in Finder</button>

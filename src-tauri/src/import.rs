@@ -128,7 +128,7 @@ pub fn import_file(items_dir: &Path, src: &Path, folder: Option<&str>, seen: &Mu
 }
 
 /// Writes `thumb.jpg` (or `thumb.png` when transparent) and fills in size info.
-fn make_thumb(file: &Path, dir: &Path, item: &mut Item) -> Option<DynamicImage> {
+pub fn make_thumb(file: &Path, dir: &Path, item: &mut Item) -> Option<DynamicImage> {
     let mut img: Option<DynamicImage> = None;
     match item.kind.as_str() {
         "image" => match decode_oriented(file) {

@@ -368,3 +368,11 @@ input, textarea, select { padding: 4px 8px; border-radius: 6px; }
 .watch-row.off { opacity: 0.55; }
 .watch-path { display: flex; flex-direction: column; min-width: 0; }
 .watch-path span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.tool-row { display: flex; flex-wrap: wrap; gap: 4px; }
+.tool-row button { min-width: 30px; }
+.token-help { display: flex; flex-wrap: wrap; gap: 4px; }
+.row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.rename-preview { display: flex; flex-direction: column; gap: 3px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 11.5px; }
+.rename-preview > div { display: grid; grid-template-columns: 1fr 16px 1fr; gap: 6px; }
+.rename-preview span, .rename-preview b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

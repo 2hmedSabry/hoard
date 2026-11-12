@@ -203,7 +203,7 @@ export default function App() {
       <Inspector
         root={lib.root} items={selectedItems} stats={stats} folders={lib.meta.folders}
         inTrash={query.scope === "trash"} total={stats?.all ?? 0}
-        onUpdate={update} onTrash={trash}
+        onUpdate={update} onTrash={trash} onChanged={refresh}
         onColor={(c) => setQuery((q) => ({ ...q, color: c }))}
         onTag={(t) => setQuery((q) => ({ ...q, tags: q.tags.includes(t) ? q.tags : [...q.tags, t] }))}
         onPreview={(id) => setPreviewId(id)} fail={fail}

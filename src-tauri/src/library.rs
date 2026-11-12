@@ -592,6 +592,66 @@ impl Library {
         self.save_meta()
     }
 
+    pub fn rename_many(&mut self, names: &[(String, String)]) -> Result<()> {
+        let mut changed = vec![];
+        for (id, name) in names {
+            let name = name.trim();
+            if name.is_empty() {
+                continue;
+            }
+            let mut it = self.get(id)?;
+            it.name = name.chars().take(250).collect();
+            it.modified_at = now_ms();
+            changed.push(it);
+        }
+        self.save_items(&changed)
+    }
+
+    /// Rotates or flips the original image file, then refreshes its thumbnail,
+    /// size, palette and fingerprints. `op`: "cw", "ccw", "flip_h", "flip_v".
+    pub fn transform(&mut self, ids: &[String], op: &str) -> Result<Vec<Item>> {
+        let mut changed = vec![];
+        for id in ids {
+            let mut it = self.get(id)?;
+            let dir = self.item_dir(id);
+            let file = dir.join(&it.file_name);
+            let Ok(img) = image::open(&file) else { continue };
+            let img = match op {
+                "cw" => img.rotate90(),
+                "ccw" => img.rotate270(),
+                "flip_h" => img.fliph(),
+                "flip_v" => img.flipv(),
+                _ => bail!("Unknown change {op}"),
+            };
+            let tmp = dir.join(format!(".edit.{}", it.ext));
+            match it.ext.as_str() {
+                "jpg" | "jpeg" => {
+                    let f = std::io::BufWriter::new(fs::File::create(&tmp)?);
+                    image::codecs::jpeg::JpegEncoder::new_with_quality(f, 92).encode_image(&img.to_rgb8())?;
+                }
+                _ => img.save(&tmp)?,
+            }
+            fs::rename(&tmp, &file)?;
+            for t in ["thumb.jpg", "thumb.png"] {
+                let _ = fs::remove_file(dir.join(t));
+            }
+            it.thumb = None;
+            if let Some(t) = crate::import::make_thumb(&file, &dir, &mut it) {
+                it.palette = palette::extract(&t);
+                it.dhash = Some(hashing::dhash(&t));
+            }
+            it.fhash = hashing::file_hash(&file).ok();
+            it.size = fs::metadata(&file)?.len();
+            it.modified_at = now_ms();
+            changed.push(it);
+        }
+        if changed.is_empty() {
+            bail!("Only images can be rotated or flipped");
+        }
+        self.save_items(&changed)?;
+        Ok(changed)
+    }
+
     pub fn file_path(&self, id: &str) -> Result<PathBuf> {
         let it = self.get(id)?;
         Ok(self.item_dir(id).join(it.file_name))
