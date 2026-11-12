@@ -1,3 +1,4 @@
+import { t as tr } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import type { Annotation } from "../types";
 
@@ -62,7 +63,7 @@ export default function Annotator({ src, annotations, editing, onSave }: Props) 
           {open === a.id && (
             <div className="anno-pop" onClick={(e) => e.stopPropagation()}>
               <p>{a.text}</p>
-              <button className="link danger" onClick={() => { setOpen(null); onSave(annotations.filter((x) => x.id !== a.id)); }}>Delete</button>
+              <button className="link danger" onClick={() => { setOpen(null); onSave(annotations.filter((x) => x.id !== a.id)); }}>{tr("Delete")}</button>
             </div>
           )}
         </div>
@@ -71,9 +72,9 @@ export default function Annotator({ src, annotations, editing, onSave }: Props) 
       {pending && (
         <div className="anno drawing" style={pct(pending)} onMouseDown={(e) => e.stopPropagation()}>
           <div className="anno-pop" onClick={(e) => e.stopPropagation()}>
-            <textarea autoFocus rows={3} placeholder="Comment on this area" value={text} onChange={(e) => setText(e.target.value)}
+            <textarea autoFocus rows={3} placeholder={tr("Comment on this area")} value={text} onChange={(e) => setText(e.target.value)}
               onKeyDown={(e) => { e.stopPropagation(); if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commit(); } if (e.key === "Escape") setPending(null); }} />
-            <div className="row-end"><button onClick={() => setPending(null)}>Cancel</button><button className="primary" onClick={commit}>Add</button></div>
+            <div className="row-end"><button onClick={() => setPending(null)}>{tr("Cancel")}</button><button className="primary" onClick={commit}>{tr("Add")}</button></div>
           </div>
         </div>
       )}

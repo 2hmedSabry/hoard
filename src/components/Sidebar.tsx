@@ -1,3 +1,4 @@
+import { t as tr } from "../i18n";
 import { useEffect, useState } from "react";
 import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
 import { api } from "../api";
@@ -7,6 +8,7 @@ import SmartFolderEditor from "./SmartFolderEditor";
 import BrowserConnect from "./BrowserConnect";
 import WatchedFolders from "./WatchedFolders";
 import { getTheme, setTheme, type ThemePref } from "../theme";
+import { getLangPref, LANGS, setLang, type LangPref } from "../i18n";
 import InlineEdit from "./InlineEdit";
 
 type Props = {
@@ -35,6 +37,7 @@ export default function Sidebar(p: Props) {
   const [connect, setConnect] = useState(false);
   const [watching, setWatching] = useState(false);
   const [theme, setThemeState] = useState<ThemePref>(getTheme);
+  const [langPref, setLangPref] = useState<LangPref>(getLangPref);
   const [smartEdit, setSmartEdit] = useState<SmartFolder | "new" | null>(null);
   const { open, toggle } = useExpanded();
 
@@ -52,11 +55,11 @@ export default function Sidebar(p: Props) {
   const run = async (f: () => Promise<unknown>) => { try { await f(); p.onLibChange(); } catch (e) { fail(e); } };
 
   const switchLibrary = async () => {
-    const path = await openDialog({ directory: true, title: "Open a .hoard library" });
+    const path = await openDialog({ directory: true, title: tr("Open a .hoard library") });
     if (typeof path === "string") api.openLibrary(path).then(p.onSwitchLibrary).catch(fail);
   };
   const newLibrary = async (name: string) => {
-    const parent = await openDialog({ directory: true, title: "Choose where to save the library" });
+    const parent = await openDialog({ directory: true, title: tr("Choose where to save the library") });
     if (typeof parent === "string") api.createLibrary(parent, name).then(p.onSwitchLibrary).catch(fail);
   };
 
@@ -73,7 +76,7 @@ export default function Sidebar(p: Props) {
 
   const row = (label: string, scope: Scope, count?: number, icon?: string) => (
     <button className={`nav-row${active(scope) ? " active" : ""}`} onClick={() => go(scope)}>
-      <span className="icon">{icon}</span><span className="label">{label}</span>
+      <span className="icon">{icon}</span><span className="label">{tr(label)}</span>
       {count != null && <span className="count">{count}</span>}
     </button>
   );
@@ -84,7 +87,7 @@ export default function Sidebar(p: Props) {
       <div key={f.id}>
         <div
           className={`nav-row folder${active("folder", f.id) ? " active" : ""}`}
-          style={{ paddingLeft: 8 + depth * 14 }} data-drop={f.id}
+          style={{ paddingInlineStart: 8 + depth * 14 }} data-drop={f.id}
           onMouseDown={(e) => { if (!(e.target as HTMLElement).closest("input, .more, .twisty, .menu")) beginDrag(e, () => ({ kind: "folder", id: f.id }), () => f.name); }}
           onClick={() => go("folder", f.id)}
           onDoubleClick={() => setEditing({ kind: "rename", id: f.id })}
@@ -99,21 +102,21 @@ export default function Sidebar(p: Props) {
           <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === f.id ? null : f.id); }}>⋯</span>
           {menu === f.id && (
             <div className="menu" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => { setMenu(null); toggle(f.id, true); setEditing({ kind: "new", parent: f.id }); }}>New subfolder</button>
-              <button onClick={() => { setMenu(null); setEditing({ kind: "rename", id: f.id }); }}>Rename</button>
-              {depth > 0 && <button onClick={() => { setMenu(null); run(() => api.moveFolder(f.id, null)); }}>Move to top level</button>}
+              <button onClick={() => { setMenu(null); toggle(f.id, true); setEditing({ kind: "new", parent: f.id }); }}>{tr("New subfolder")}</button>
+              <button onClick={() => { setMenu(null); setEditing({ kind: "rename", id: f.id }); }}>{tr("Rename")}</button>
+              {depth > 0 && <button onClick={() => { setMenu(null); run(() => api.moveFolder(f.id, null)); }}>{tr("Move to top level")}</button>}
               <button className="danger" onClick={async () => {
                 setMenu(null);
-                const ok = await ask(`Delete the folder "${f.name}" and its subfolders? The items stay in your library.`, { title: "Delete folder", kind: "warning", okLabel: "Delete" });
+                const ok = await ask(tr("Delete the folder “{name}” and its subfolders? The items stay in your library.", { name: f.name }), { title: tr("Delete folder"), kind: "warning", okLabel: tr("Delete"), cancelLabel: tr("Cancel") });
                 if (ok) { if (active("folder", f.id)) go("all"); run(() => api.deleteFolder(f.id)); }
-              }}>Delete folder</button>
+              }}>{tr("Delete folder")}</button>
             </div>
           )}
         </div>
         {isOpen && f.children.map((c) => renderFolder(c, depth + 1))}
         {isOpen && editing?.kind === "new" && editing.parent === f.id && (
-          <div className="nav-row" style={{ paddingLeft: 8 + (depth + 1) * 14 + 16 }}>
-            <InlineEdit initial="" placeholder="Folder name" onDone={(v) => { setEditing(null); if (v) run(() => api.createFolder(v, f.id)); }} />
+          <div className="nav-row" style={{ paddingInlineStart: 8 + (depth + 1) * 14 + 16 }}>
+            <InlineEdit initial="" placeholder={tr("Folder name")} onDone={(v) => { setEditing(null); if (v) run(() => api.createFolder(v, f.id)); }} />
           </div>
         )}
       </div>
@@ -125,7 +128,7 @@ export default function Sidebar(p: Props) {
       <div className="lib-header" onClick={(e) => { e.stopPropagation(); setLibMenu(!libMenu); }}>
         <div className="logo small" />
         {editing?.kind === "library" ? (
-          <InlineEdit initial="" placeholder="New library name" onDone={(v) => { setEditing(null); if (v) newLibrary(v); }} />
+          <InlineEdit initial="" placeholder={tr("New library name")} onDone={(v) => { setEditing(null); if (v) newLibrary(v); }} />
         ) : (
           <>
             <div className="lib-name" title={lib.root}>{lib.meta.name}</div>
@@ -134,21 +137,29 @@ export default function Sidebar(p: Props) {
         )}
         {libMenu && (
           <div className="menu" onClick={(e) => e.stopPropagation()}>
-            <button onClick={() => { setLibMenu(false); switchLibrary(); }}>Open library…</button>
-            <button onClick={() => { setLibMenu(false); setEditing({ kind: "library" }); }}>New library…</button>
-            <button onClick={() => { setLibMenu(false); run(async () => { await api.rebuildIndex(); }); }}>Rebuild search index</button>
+            <button onClick={() => { setLibMenu(false); switchLibrary(); }}>{tr("Open library…")}</button>
+            <button onClick={() => { setLibMenu(false); setEditing({ kind: "library" }); }}>{tr("New library…")}</button>
+            <button onClick={() => { setLibMenu(false); run(async () => { await api.rebuildIndex(); }); }}>{tr("Rebuild search index")}</button>
             <button onClick={async () => {
               setLibMenu(false);
-              const f = await openDialog({ title: "Import a Hoard pack", filters: [{ name: "Hoard pack", extensions: ["hoardpack"] }] });
+              const f = await openDialog({ title: tr("Import a Hoard pack"), filters: [{ name: "Hoard pack", extensions: ["hoardpack"] }] });
               if (typeof f === "string") run(() => api.importPack(f));
-            }}>Import pack…</button>
-            <button onClick={() => { setLibMenu(false); setWatching(true); }}>Watched folders…</button>
-            <button onClick={() => { setLibMenu(false); setConnect(true); }}>Browser extension…</button>
-            <div className="menu-label">Appearance</div>
+            }}>{tr("Import pack…")}</button>
+            <button onClick={() => { setLibMenu(false); setWatching(true); }}>{tr("Watched folders…")}</button>
+            <button onClick={() => { setLibMenu(false); setConnect(true); }}>{tr("Browser extension…")}</button>
+            <div className="menu-label">{tr("Language")}</div>
+            <div className="theme-switch">
+              {LANGS.map(([l, label]) => (
+                <button key={l} className={langPref === l ? "on" : ""} onClick={() => { setLang(l); setLangPref(l); }}>
+                  {l === "system" ? tr("System") : label}
+                </button>
+              ))}
+            </div>
+            <div className="menu-label">{tr("Appearance")}</div>
             <div className="theme-switch">
               {(["dark", "light", "system"] as ThemePref[]).map((t) => (
                 <button key={t} className={theme === t ? "on" : ""} onClick={() => { setTheme(t); setThemeState(t); }}>
-                  {t[0].toUpperCase() + t.slice(1)}
+                  {tr(t[0].toUpperCase() + t.slice(1))}
                 </button>
               ))}
             </div>
@@ -163,15 +174,15 @@ export default function Sidebar(p: Props) {
           {row("Untagged", "untagged", stats?.untagged, "#")}
           {row("Duplicates", "duplicates", undefined, "⧉")}
           <div className={`nav-row${active("trash") ? " active" : ""}`} onClick={() => go("trash")} role="button">
-            <span className="icon">⌫</span><span className="label">Trash</span>
-            {active("trash") && !!stats?.trash && <span className="link small" onClick={(e) => { e.stopPropagation(); p.onEmptyTrash(); }}>Empty</span>}
+            <span className="icon">⌫</span><span className="label">{tr("Trash")}</span>
+            {active("trash") && !!stats?.trash && <span className="link small" onClick={(e) => { e.stopPropagation(); p.onEmptyTrash(); }}>{tr("Empty")}</span>}
             <span className="count">{stats?.trash}</span>
           </div>
         </div>
 
         <div className="section-title">
-          <span>Smart folders</span>
-          <button className="icon-btn" title="New smart folder" onClick={() => setSmartEdit("new")}>＋</button>
+          <span>{tr("Smart folders")}</span>
+          <button className="icon-btn" title={tr("New smart folder")} onClick={() => setSmartEdit("new")}>＋</button>
         </div>
         <div className="section">
           {lib.meta.smartFolders.map((sf) => (
@@ -182,34 +193,34 @@ export default function Sidebar(p: Props) {
               <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === sf.id ? null : sf.id); }}>⋯</span>
               {menu === sf.id && (
                 <div className="menu" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => { setMenu(null); setSmartEdit(sf); }}>Edit rules…</button>
+                  <button onClick={() => { setMenu(null); setSmartEdit(sf); }}>{tr("Edit rules…")}</button>
                   <button className="danger" onClick={async () => {
                     setMenu(null);
-                    const ok = await ask(`Delete the smart folder "${sf.name}"? No items are deleted.`, { title: "Delete smart folder", kind: "warning", okLabel: "Delete" });
+                    const ok = await ask(tr("Delete the smart folder “{name}”? No items are deleted.", { name: sf.name }), { title: tr("Delete smart folder"), kind: "warning", okLabel: tr("Delete"), cancelLabel: tr("Cancel") });
                     if (ok) { if (active("smart", sf.id)) go("all"); run(() => api.deleteSmartFolder(sf.id)); }
-                  }}>Delete</button>
+                  }}>{tr("Delete")}</button>
                 </div>
               )}
             </div>
           ))}
-          {!lib.meta.smartFolders.length && <p className="muted small pad">Smart folders collect items by rules, like “5 stars and tagged logo”.</p>}
+          {!lib.meta.smartFolders.length && <p className="muted small pad">{tr("Smart folders collect items by rules, like “5 stars and tagged logo”.")}</p>}
         </div>
 
         <div className="section-title" data-drop="__top">
-          <span>Folders</span>
-          <button className="icon-btn" title="New folder" onClick={() => setEditing({ kind: "new", parent: null })}>＋</button>
+          <span>{tr("Folders")}</span>
+          <button className="icon-btn" title={tr("New folder")} onClick={() => setEditing({ kind: "new", parent: null })}>＋</button>
         </div>
         <div className="section">
           {lib.meta.folders.map((f) => renderFolder(f, 0))}
           {editing?.kind === "new" && editing.parent === null && (
-            <div className="nav-row" style={{ paddingLeft: 24 }}>
-              <InlineEdit initial="" placeholder="Folder name" onDone={(v) => { setEditing(null); if (v) run(() => api.createFolder(v, null)); }} />
+            <div className="nav-row" style={{ paddingInlineStart: 24 }}>
+              <InlineEdit initial="" placeholder={tr("Folder name")} onDone={(v) => { setEditing(null); if (v) run(() => api.createFolder(v, null)); }} />
             </div>
           )}
-          {!lib.meta.folders.length && editing?.kind !== "new" && <p className="muted small pad">No folders yet. Drag items onto a folder to file them.</p>}
+          {!lib.meta.folders.length && editing?.kind !== "new" && <p className="muted small pad">{tr("No folders yet. Drag items onto a folder to file them.")}</p>}
         </div>
 
-        <div className="section-title"><span>Tags</span></div>
+        <div className="section-title"><span>{tr("Tags")}</span></div>
         <div className="section tag-list">
           {stats?.tags.map(([t, n]) => (
             <div key={t} className={`nav-row tag-row${query.tags.includes(t) ? " active" : ""}`}
@@ -223,17 +234,17 @@ export default function Sidebar(p: Props) {
                 }} />
               ) : <span className="label">{t}</span>}
               <span className="count">{n}</span>
-              <span className="more" title="Delete tag" onClick={async (e) => {
+              <span className="more" title={tr("Delete tag")} onClick={async (e) => {
                 e.stopPropagation();
-                const ok = await ask(`Remove the tag "${t}" from ${n} item${n > 1 ? "s" : ""}?`, { title: "Delete tag", kind: "warning", okLabel: "Remove" });
+                const ok = await ask(tr("Remove the tag “{tag}” from {n} items?", { tag: t, n }), { title: tr("Delete tag"), kind: "warning", okLabel: tr("Remove"), cancelLabel: tr("Cancel") });
                 if (ok) run(() => api.renameTag(t, "")).then(() => setQuery((q) => ({ ...q, tags: q.tags.filter((x) => x !== t) })));
               }}>×</span>
             </div>
           ))}
-          {!stats?.tags.length && <p className="muted small pad">Tags you add to items show up here.</p>}
+          {!stats?.tags.length && <p className="muted small pad">{tr("Tags you add to items show up here.")}</p>}
         </div>
       </div>
-      {!!stats?.aiPending && <div className="ai-status"><span className="spin" /> Analysing {stats.aiPending} item{stats.aiPending > 1 ? "s" : ""} on this Mac…</div>}
+      {!!stats?.aiPending && <div className="ai-status"><span className="spin" /> {tr("Analysing {n} items on this Mac…", { n: stats.aiPending })}</div>}
       {watching && <WatchedFolders lib={lib} onChange={p.onLibChange} onClose={() => setWatching(false)} fail={fail} />}
       {connect && <BrowserConnect onClose={() => setConnect(false)} fail={fail} />}
       {smartEdit && (

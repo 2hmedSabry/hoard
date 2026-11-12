@@ -1,3 +1,4 @@
+import { t as tr, count as countWord } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { flattenFolders } from "../api";
 import type { Folder, Kind, Query, SmartFolder, Sort } from "../types";
@@ -39,40 +40,40 @@ export default function Toolbar({ query, setQuery, thumbSize, setThumbSize, onIm
     <header className="toolbar">
       <div className="row">
         <div className="title">
-          <h2>{title}</h2>
-          <span className="muted">{count} item{count === 1 ? "" : "s"}{selectedCount ? ` · ${selectedCount} selected` : ""}</span>
+          <h2>{query.scope === "folder" || query.scope === "smart" ? title : tr(title)}</h2>
+          <span className="muted">{countWord(count, "1 item", "{n} items")}{selectedCount ? " · " + tr("{n} selected", { n: selectedCount }) : ""}</span>
         </div>
         <div className="search">
           <span className="muted">⌕</span>
-          <input ref={search} placeholder="Search names, tags, notes, links (⌘F)" value={query.text}
+          <input ref={search} placeholder={tr("Search names, tags, notes, links (⌘F)")} value={query.text}
             onChange={(e) => setQuery((q) => ({ ...q, text: e.target.value }))}
             onKeyDown={(e) => e.key === "Escape" && setQuery((q) => ({ ...q, text: "" }))} />
         </div>
-        <input type="range" min={100} max={360} value={thumbSize} title="Thumbnail size"
+        <input type="range" min={100} max={360} value={thumbSize} title={tr("Thumbnail size")}
           onChange={(e) => setThumbSize(Number(e.target.value))} />
         <div className="popover-wrap">
-          <button className="primary" onClick={(e) => { e.stopPropagation(); setImportOpen(!importOpen); }}>Import ⌄</button>
+          <button className="primary" onClick={(e) => { e.stopPropagation(); setImportOpen(!importOpen); }}>{tr("Import")} ⌄</button>
           {importOpen && (
             <div className="menu right" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => { setImportOpen(false); onImport(false); }}>Files…</button>
-              <button onClick={() => { setImportOpen(false); onImport(true); }}>Folders…</button>
-              <p className="muted small pad">Or drop files anywhere in the window.</p>
+              <button onClick={() => { setImportOpen(false); onImport(false); }}>{tr("Files…")}</button>
+              <button onClick={() => { setImportOpen(false); onImport(true); }}>{tr("Folders…")}</button>
+              <p className="muted small pad">{tr("Or drop files anywhere in the window.")}</p>
             </div>
           )}
         </div>
       </div>
       <div className="row filters">
         {KINDS.map(([k, label]) => (
-          <button key={k} className={`chip${query.kinds.includes(k) ? " on" : ""}`} onClick={() => toggleKind(k)}>{label}</button>
+          <button key={k} className={`chip${query.kinds.includes(k) ? " on" : ""}`} onClick={() => toggleKind(k)}>{tr(label)}</button>
         ))}
         <span className="sep" />
         <select value={query.minRating} onChange={(e) => setQuery((q) => ({ ...q, minRating: Number(e.target.value) }))}>
-          <option value={0}>Any rating</option>
-          {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{"★".repeat(n)}{n < 5 ? " or more" : ""}</option>)}
+          <option value={0}>{tr("Any rating")}</option>
+          {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{"★".repeat(n)}{n < 5 ? " " + tr("or more") : ""}</option>)}
         </select>
         <div className="popover-wrap">
           <button className={`chip${query.color ? " on" : ""}`} onClick={(e) => { e.stopPropagation(); setColorOpen(!colorOpen); }}>
-            {query.color && <span className="dot" style={{ background: query.color }} />}Colour
+            {query.color && <span className="dot" style={{ background: query.color }} />}{tr("Colour")}
           </button>
           {colorOpen && (
             <div className="menu colors" onClick={(e) => e.stopPropagation()}>
@@ -82,19 +83,19 @@ export default function Toolbar({ query, setQuery, thumbSize, setThumbSize, onIm
                     onClick={() => { setQuery((q) => ({ ...q, color: c })); setColorOpen(false); }} />
                 ))}
               </div>
-              <label className="custom-color">Custom <input type="color" value={query.color ?? "#0090ff"}
+              <label className="custom-color">{tr("Custom")} <input type="color" value={query.color ?? "#0090ff"}
                 onChange={(e) => setQuery((q) => ({ ...q, color: e.target.value }))} /></label>
-              {query.color && <button className="link" onClick={() => { setQuery((q) => ({ ...q, color: null })); setColorOpen(false); }}>Clear colour</button>}
+              {query.color && <button className="link" onClick={() => { setQuery((q) => ({ ...q, color: null })); setColorOpen(false); }}>{tr("Clear colour")}</button>}
             </div>
           )}
         </div>
         {query.tags.map((t) => (
-          <button key={t} className="chip on" title="Remove tag filter" onClick={() => setQuery((q) => ({ ...q, tags: q.tags.filter((x) => x !== t) }))}>#{t} ×</button>
+          <button key={t} className="chip on" title={tr("Remove tag filter")} onClick={() => setQuery((q) => ({ ...q, tags: q.tags.filter((x) => x !== t) }))}>#{t} ×</button>
         ))}
-        {filtered ? <button className="link" onClick={() => setQuery((q) => ({ ...q, tags: [], kinds: [], minRating: 0, color: null, text: "" }))}>Clear filters</button> : null}
+        {filtered ? <button className="link" onClick={() => setQuery((q) => ({ ...q, tags: [], kinds: [], minRating: 0, color: null, text: "" }))}>{tr("Clear filters")}</button> : null}
         <span className="grow" />
         <select value={query.sort} onChange={(e) => setQuery((q) => ({ ...q, sort: e.target.value as Sort }))}>
-          {SORTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+          {SORTS.map(([v, l]) => <option key={v} value={v}>{tr(l)}</option>)}
         </select>
       </div>
     </header>

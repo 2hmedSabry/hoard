@@ -1,3 +1,4 @@
+import { t as tr } from "../i18n";
 import { useEffect, useState } from "react";
 import { flattenFolders } from "../api";
 import type { Folder, Rule, SmartFolder } from "../types";
@@ -75,58 +76,58 @@ export default function SmartFolderEditor({ initial, folders, onSave, onClose }:
     const f = FIELDS[r.field];
     switch (f.input) {
       case "kind":
-        return <select value={r.value} onChange={(e) => set(i, { value: e.target.value })}>{KINDS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>;
+        return <select value={r.value} onChange={(e) => set(i, { value: e.target.value })}>{KINDS.map(([v, l]) => <option key={v} value={v}>{tr(l)}</option>)}</select>;
       case "orientation":
         return <select value={r.value} onChange={(e) => set(i, { value: e.target.value })}>
-          <option value="landscape">Landscape</option><option value="portrait">Portrait</option><option value="square">Square</option></select>;
+          <option value="landscape">{tr("Landscape")}</option><option value="portrait">{tr("Portrait")}</option><option value="square">{tr("Square")}</option></select>;
       case "folder":
         return flat.length
           ? <select value={r.value} onChange={(e) => set(i, { value: e.target.value })}>{flat.map(({ f: fo, depth }) => <option key={fo.id} value={fo.id}>{"  ".repeat(depth)}{fo.name}</option>)}</select>
-          : <span className="muted small">No folders yet</span>;
+          : <span className="muted small">{tr("No folders yet")}</span>;
       case "color":
         return <input type="color" className="color-in" value={r.value} onChange={(e) => set(i, { value: e.target.value })} />;
       case "number":
       case "days":
-        return <span className="num-in"><input type="number" min={0} step="any" value={r.value} onChange={(e) => set(i, { value: e.target.value })} />{f.unit && <span className="muted">{f.unit}</span>}</span>;
+        return <span className="num-in"><input type="number" min={0} step="any" value={r.value} onChange={(e) => set(i, { value: e.target.value })} />{f.unit && <span className="muted">{tr(f.unit)}</span>}</span>;
       default:
-        return <input value={r.value} placeholder="value" onChange={(e) => set(i, { value: e.target.value })} />;
+        return <input value={r.value} placeholder={tr("value")} onChange={(e) => set(i, { value: e.target.value })} />;
     }
   };
 
   return (
     <div className="modal-back" onMouseDown={onClose}>
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <h3>{initial ? "Edit smart folder" : "New smart folder"}</h3>
-        <p className="muted small">Items that match the rules show up here automatically.</p>
-        <label className="field"><span>Name</span>
-          <input autoFocus value={name} placeholder="e.g. Unrated photos" onChange={(e) => setName(e.target.value)} />
+        <h3>{initial ? tr("Edit smart folder") : tr("New smart folder")}</h3>
+        <p className="muted small">{tr("Items that match the rules show up here automatically.")}</p>
+        <label className="field"><span>{tr("Name")}</span>
+          <input autoFocus value={name} placeholder={tr("e.g. Unrated photos")} onChange={(e) => setName(e.target.value)} />
         </label>
         <div className="match-row">
-          Show items that match
+          {tr("Show items that match")}
           <select value={mode} onChange={(e) => setMode(e.target.value as "all" | "any")}>
-            <option value="all">all</option><option value="any">any</option>
+            <option value="all">{tr("all")}</option><option value="any">{tr("any")}</option>
           </select>
-          of these rules:
+          {tr("of these rules:")}
         </div>
         <div className="rules">
           {rules.map((r, i) => (
             <div key={i} className="rule">
               <select value={r.field} onChange={(e) => set(i, { field: e.target.value })}>
-                {Object.entries(FIELDS).map(([k, f]) => <option key={k} value={k}>{f.label}</option>)}
+                {Object.entries(FIELDS).map(([k, f]) => <option key={k} value={k}>{tr(f.label)}</option>)}
               </select>
               <select value={r.op} onChange={(e) => set(i, { op: e.target.value })}>
-                {FIELDS[r.field].ops.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                {FIELDS[r.field].ops.map(([v, l]) => <option key={v} value={v}>{tr(l)}</option>)}
               </select>
               {valueInput(r, i)}
-              <button className="icon-btn" title="Remove rule" disabled={rules.length === 1}
+              <button className="icon-btn" title={tr("Remove rule")} disabled={rules.length === 1}
                 onClick={() => setRules((rs) => rs.filter((_, j) => j !== i))}>×</button>
             </div>
           ))}
         </div>
-        <button className="link add-rule" onClick={() => setRules((rs) => [...rs, { field: "name", op: "contains", value: "" }])}>＋ Add rule</button>
+        <button className="link add-rule" onClick={() => setRules((rs) => [...rs, { field: "name", op: "contains", value: "" }])}>{"＋ " + tr("Add rule")}</button>
         <div className="modal-actions">
-          <button onClick={onClose}>Cancel</button>
-          <button className="primary" disabled={!valid} onClick={() => onSave(name.trim(), mode, rules)}>{initial ? "Save" : "Create"}</button>
+          <button onClick={onClose}>{tr("Cancel")}</button>
+          <button className="primary" disabled={!valid} onClick={() => onSave(name.trim(), mode, rules)}>{initial ? tr("Save") : tr("Create")}</button>
         </div>
       </div>
     </div>

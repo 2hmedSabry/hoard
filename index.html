@@ -4,6 +4,16 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Hoard</title>
+    <script>
+      // Forward startup errors to the app log so a blank window can be diagnosed.
+      (function () {
+        function send(msg) {
+          try { window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke("report_js_error", { message: String(msg).slice(0, 4000) }); } catch (e) {}
+        }
+        window.addEventListener("error", function (e) { send((e.message || "error") + " @ " + (e.filename || "") + ":" + (e.lineno || "") + "\n" + (e.error && e.error.stack || "")); });
+        window.addEventListener("unhandledrejection", function (e) { send("unhandled: " + (e.reason && (e.reason.stack || e.reason.message) || e.reason)); });
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

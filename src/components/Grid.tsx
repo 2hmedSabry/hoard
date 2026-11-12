@@ -1,3 +1,4 @@
+import { t as tr } from "../i18n";
 import { memo, useEffect, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { formatDuration, thumbUrl } from "../api";
@@ -78,9 +79,9 @@ export default function Grid({ root, items, selected, thumbSize, onSelect, onCle
     return (
       <div className="grid empty" ref={scroller} onClick={onClear}>
         <div className="empty-state">
-          {emptyHint.scope === "trash" ? <p>The Trash is empty.</p>
-            : filtered ? <p>Nothing matches these filters.</p>
-              : <><p className="big">Drop files or folders here</p><p className="muted">or use Import in the top right.</p></>}
+          {emptyHint.scope === "trash" ? <p>{tr("The Trash is empty.")}</p>
+            : filtered ? <p>{tr("Nothing matches these filters.")}</p>
+              : <><p className="big">{tr("Drop files or folders here")}</p><p className="muted">or use Import in the top right.</p></>}
         </div>
       </div>
     );
@@ -90,7 +91,7 @@ export default function Grid({ root, items, selected, thumbSize, onSelect, onCle
     <div className="grid" ref={scroller} onClick={onClear}>
       <div style={{ height: v.getTotalSize() + GAP, position: "relative" }}>
         {v.getVirtualItems().map((r) => (
-          <div key={r.key} className="grid-row" style={{ transform: `translateY(${r.start + GAP}px)`, gap: GAP, paddingLeft: GAP }}>
+          <div key={r.key} className="grid-row" style={{ transform: `translateY(${r.start + GAP}px)`, gap: GAP, paddingInlineStart: GAP }}>
             {items.slice(r.index * cols, r.index * cols + cols).map((it) => (
               <Tile key={it.id} root={root} item={it} size={size} selected={selected.has(it.id)}
                 selectedIds={selected} onSelect={onSelect} onOpen={onOpen} />

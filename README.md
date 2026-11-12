@@ -20,6 +20,7 @@ Built with [Tauri 2](https://tauri.app), Rust and React.
 - **On-device AI (macOS).** Using Apple's Vision framework, entirely on your Mac: suggested tags for every picture, text found in images (English, Arabic and more) becomes searchable, and **Find similar** shows the pictures that look most alike. Nothing is uploaded.
 - **Find.** Instant prefix search across names, tags, notes and links; filters for type, tags, rating and colour. Colours are extracted from every item, so you can find "everything blue".
 - **Preview.** Full-window preview with arrow-key navigation and a slideshow (P). Videos play; audio shows a waveform you can click to seek; fonts show an editable sample at several sizes with Latin and Arabic glyphs; PDFs, text, Markdown, CSV and JSON open inline.
+- **Languages.** English and Arabic, with a full right-to-left layout. Pick the language and Dark / Light / System appearance from the library menu.
 - **Trash.** Deleted items can be restored until you empty the Trash.
 
 ## Requirements

@@ -188,6 +188,18 @@ fn regenerate_api_token(app: AppHandle) -> R<String> {
     Ok(api_server::regenerate_token(&app))
 }
 
+/// Appends a front-end error to `<app log dir>/frontend.log`.
+#[tauri::command]
+fn report_js_error(app: AppHandle, message: String) {
+    if let Ok(dir) = app.path().app_log_dir() {
+        let _ = fs::create_dir_all(&dir);
+        if let Ok(mut f) = fs::OpenOptions::new().create(true).append(true).open(dir.join("frontend.log")) {
+            use std::io::Write;
+            let _ = writeln!(f, "[{}] {}", now_ms(), message.chars().take(4000).collect::<String>());
+        }
+    }
+}
+
 #[tauri::command]
 fn open_url(url: String) -> R<()> {
     if !(url.starts_with("http://") || url.starts_with("https://")) {
@@ -370,6 +382,7 @@ pub fn run() {
             reveal_item,
             open_item,
             open_url,
+            report_js_error,
             api_info,
             regenerate_api_token,
             import_paths,

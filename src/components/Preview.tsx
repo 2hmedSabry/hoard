@@ -1,3 +1,4 @@
+import { t as tr } from "../i18n";
 import { useEffect, useState } from "react";
 import { api, fileUrl, thumbUrl } from "../api";
 import type { Item } from "../types";
@@ -43,7 +44,7 @@ export default function Preview({ root, items, id, onNavigate, onClose, onItemCh
   let body: React.ReactNode;
   if (item.kind === "image" && browserImage) {
     body = actual
-      ? <img className="actual" src={src} onClick={() => setActual(false)} title="Click to fit" />
+      ? <img className="actual" src={src} onClick={() => setActual(false)} title={tr("Click to fit")} />
       : <Annotator src={src} annotations={item.annotations ?? []} editing={annotating}
           onSave={(list) => api.setAnnotations(item.id, list).then(onItemChanged).catch(fail)} />;
   } else if (item.kind === "video") {
@@ -70,17 +71,17 @@ export default function Preview({ root, items, id, onNavigate, onClose, onItemCh
         <span className="grow" />
         {item.kind === "image" && browserImage && <>
           <button className={annotating ? "primary" : ""} onClick={() => { setAnnotating(!annotating); setActual(false); }}
-            title="Drag on the picture to comment on an area">{annotating ? "Done commenting" : `Comment on area${item.annotations?.length ? ` (${item.annotations.length})` : ""}`}</button>
-          <button onClick={() => { setActual(!actual); setAnnotating(false); }}>{actual ? "Fit" : "100%"}</button>
+            title={tr("Drag on the picture to comment on an area")}>{annotating ? tr("Done commenting") : tr("Comment on area") + (item.annotations?.length ? ` (${item.annotations.length})` : "")}</button>
+          <button onClick={() => { setActual(!actual); setAnnotating(false); }}>{actual ? tr("Fit") : "100%"}</button>
         </>}
         {items.length > 1 && <>
-          <button className={playing ? "primary" : ""} onClick={() => setPlaying(!playing)} title="Slideshow (P)">{playing ? "❚❚ Pause" : "▶ Slideshow"}</button>
+          <button className={playing ? "primary" : ""} onClick={() => setPlaying(!playing)} title={tr("Slideshow (P)")}>{playing ? "❚❚ " + tr("Pause") : "▶ " + tr("Slideshow")}</button>
           {playing && <select value={every} onChange={(e) => setEvery(Number(e.target.value))}>
             {[2, 4, 8, 15].map((n) => <option key={n} value={n}>{n}s</option>)}
           </select>}
         </>}
-        <button onClick={() => api.open(item.id)}>Open in default app</button>
-        <button onClick={onClose}>Close (Esc)</button>
+        <button onClick={() => api.open(item.id)}>{tr("Open in default app")}</button>
+        <button onClick={onClose}>{tr("Close (Esc)")}</button>
       </div>
       <div className={`preview-body${actual ? " scroll" : ""}`} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
         <div className="preview-content" onClick={(e) => e.stopPropagation()}>{body}</div>

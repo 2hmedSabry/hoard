@@ -1,3 +1,4 @@
+import { t as tr } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import type { Item } from "../types";
 
@@ -5,7 +6,7 @@ import type { Item } from "../types";
 export function FontViewer({ src, item }: { src: string; item: Item }) {
   const family = `hoard-font-${item.id}`;
   const [ready, setReady] = useState<"loading" | "ok" | "bad">("loading");
-  const [sample, setSample] = useState("The quick brown fox jumps over the lazy dog");
+  const [sample, setSample] = useState(tr("The quick brown fox jumps over the lazy dog"));
   const [size, setSize] = useState(48);
 
   useEffect(() => {
@@ -19,11 +20,11 @@ export function FontViewer({ src, item }: { src: string; item: Item }) {
   return (
     <div className="font-view" style={{ fontFamily: `"${family}", system-ui` }} onClick={(e) => e.stopPropagation()}>
       <div className="font-tools">
-        <input value={sample} onChange={(e) => setSample(e.target.value)} placeholder="Type to preview" style={{ fontFamily: "inherit" }} />
+        <input value={sample} onChange={(e) => setSample(e.target.value)} placeholder={tr("Type to preview")} style={{ fontFamily: "inherit" }} />
         <input type="range" min={12} max={160} value={size} onChange={(e) => setSize(Number(e.target.value))} />
         <span className="muted">{size}px</span>
       </div>
-      {ready === "loading" ? <p className="muted">Loading font…</p> : <>
+      {ready === "loading" ? <p className="muted">{tr("Loading font…")}</p> : <>
         <div className="font-sample" style={{ fontSize: size }}>{sample || " "}</div>
         <div className="font-glyphs">ABCDEFGHIJKLMNOPQRSTUVWXYZ<br />abcdefghijklmnopqrstuvwxyz<br />0123456789 !?&amp;@#%()[]{"{}"}.,;:</div>
         <div className="font-glyphs" dir="rtl">أبجد هوز حطي كلمن سعفص قرشت ثخذ ضظغ ١٢٣٤٥٦٧٨٩٠</div>
@@ -78,7 +79,7 @@ export function AudioViewer({ src, cover }: { src: string; cover: string | null 
   return (
     <div className="audio-view" onClick={(e) => e.stopPropagation()}>
       {cover && <img src={cover} className="audio-cover" />}
-      {peaks === null ? <p className="muted">Reading audio…</p> : peaks.length ? (
+      {peaks === null ? <p className="muted">{tr("Reading audio…")}</p> : peaks.length ? (
         <canvas ref={canvas} className="wave" onClick={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
           const a = audio.current;
@@ -100,5 +101,5 @@ export function TextViewer({ src }: { src: string }) {
     fetch(src).then((r) => r.text()).then((t) => !cancelled && setText(t.length > 262144 ? t.slice(0, 262144) + "\n…" : t)).catch(() => !cancelled && setText(""));
     return () => { cancelled = true; };
   }, [src]);
-  return <pre className="text-view" dir="auto" onClick={(e) => e.stopPropagation()}>{text ?? "Loading…"}</pre>;
+  return <pre className="text-view" dir="auto" onClick={(e) => e.stopPropagation()}>{text ?? tr("Loading…")}</pre>;
 }

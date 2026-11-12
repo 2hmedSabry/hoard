@@ -1,3 +1,4 @@
+import { t as tr, useLang } from "./i18n";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
@@ -21,6 +22,7 @@ function readThumbSize() {
 }
 
 export default function App() {
+  useLang(); // re-render everything when the language changes
   const [lib, setLib] = useState<LibraryInfo | null>(null);
   const [booting, setBooting] = useState(true);
   const [stats, setStats] = useState<Stats | null>(null);
@@ -78,7 +80,7 @@ export default function App() {
     try {
       for (const pk of packs) {
         const [added, skipped] = await api.importPack(pk);
-        setNotice(`Pack imported: ${added} added${skipped ? `, ${skipped} already in library` : ""}.`);
+        setNotice(tr("Pack imported: {a} added", { a: added }) + (skipped ? tr(", {s} already in library", { s: skipped }) : ""));
         reloadLib();
       }
       if (rest.length) await api.importPaths(rest, folder);
@@ -136,7 +138,7 @@ export default function App() {
   }, [refresh, fail]);
 
   const pickImport = useCallback(async (dirs: boolean) => {
-    const res = await openDialog({ multiple: true, directory: dirs, title: dirs ? "Import folders" : "Import files" });
+    const res = await openDialog({ multiple: true, directory: dirs, title: dirs ? tr("Import folders") : tr("Import files") });
     if (res) importPaths(Array.isArray(res) ? res : [res]);
   }, [importPaths]);
 
@@ -204,11 +206,11 @@ export default function App() {
         </>}
         {progress && (
           <div className="progress">
-            <span>Importing {progress.done} of {progress.total}{progress.skipped ? ` · ${progress.skipped} already in library` : ""}{progress.failed ? ` · ${progress.failed} failed` : ""}</span>
+            <span>{tr("Importing {d} of {n}", { d: progress.done, n: progress.total })}{progress.skipped ? " · " + tr("{s} already in library", { s: progress.skipped }) : ""}{progress.failed ? " · " + tr("{f} failed", { f: progress.failed }) : ""}</span>
             <div className="bar"><div style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }} /></div>
           </div>
         )}
-        {dropping && <div className="drop-hint"><div>Drop to import{query.scope === "folder" ? " into this folder" : ""}</div></div>}
+        {dropping && <div className="drop-hint"><div>{query.scope === "folder" ? tr("Drop to import into this folder") : tr("Drop to import")}</div></div>}
       </main>
       <Inspector
         root={lib.root} items={selectedItems} stats={stats} folders={lib.meta.folders}
@@ -227,7 +229,7 @@ export default function App() {
       {notice && <div className="toast ok" onClick={() => setNotice(null)}><span>{notice}</span></div>}
       {error && (
         <div className="toast" onClick={() => setError(null)}>
-          <span>{error}</span><button className="link">Dismiss</button>
+          <span>{error}</span><button className="link">{tr("Dismiss")}</button>
         </div>
       )}
     </div>

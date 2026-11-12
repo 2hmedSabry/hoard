@@ -1,3 +1,4 @@
+import { t as tr } from "../i18n";
 import { useEffect, useMemo, useState } from "react";
 import type { Item } from "../types";
 
@@ -35,8 +36,8 @@ export default function BatchRename({ items, onApply, onClose }: Props) {
   return (
     <div className="modal-back" onMouseDown={onClose}>
       <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-        <h3>Rename {items.length} item{items.length > 1 ? "s" : ""}</h3>
-        <label className="field"><span>Name pattern</span>
+        <h3>{tr("Rename {n} items", { n: items.length })}</h3>
+        <label className="field"><span>{tr("Name pattern")}</span>
           <input autoFocus value={pattern} onChange={(e) => setPattern(e.target.value)} />
         </label>
         <div className="token-help muted small">
@@ -45,19 +46,19 @@ export default function BatchRename({ items, onApply, onClose }: Props) {
           ))}
         </div>
         <div className="row-3">
-          <label className="field"><span>Start numbers at</span><input type="number" value={start} onChange={(e) => setStart(Number(e.target.value) || 0)} /></label>
-          <label className="field"><span>Find</span><input value={find} onChange={(e) => setFind(e.target.value)} /></label>
-          <label className="field"><span>Replace with</span><input value={replace} onChange={(e) => setReplace(e.target.value)} /></label>
+          <label className="field"><span>{tr("Start numbers at")}</span><input type="number" value={start} onChange={(e) => setStart(Number(e.target.value) || 0)} /></label>
+          <label className="field"><span>{tr("Find")}</span><input value={find} onChange={(e) => setFind(e.target.value)} /></label>
+          <label className="field"><span>{tr("Replace with")}</span><input value={replace} onChange={(e) => setReplace(e.target.value)} /></label>
         </div>
         <div className="rename-preview">
           {result.slice(0, 8).map(([id, n], i) => (
-            <div key={id}><span className="muted">{items[i].name}</span><span>→</span><b>{n || "(empty)"}</b></div>
+            <div key={id}><span className="muted">{items[i].name}</span><span>→</span><b>{n || tr("(empty)")}</b></div>
           ))}
-          {items.length > 8 && <div className="muted small">…and {items.length - 8} more</div>}
+          {items.length > 8 && <div className="muted small">{tr("…and {n} more", { n: items.length - 8 })}</div>}
         </div>
         <div className="modal-actions">
-          <button onClick={onClose}>Cancel</button>
-          <button className="primary" disabled={empty} onClick={() => onApply(result)}>Rename</button>
+          <button onClick={onClose}>{tr("Cancel")}</button>
+          <button className="primary" disabled={empty} onClick={() => onApply(result)}>{tr("Rename")}</button>
         </div>
       </div>
     </div>
