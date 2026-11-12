@@ -43,6 +43,7 @@ export const api = {
   saveTagGroup: (id: string, name: string, color: string | null) => invoke<void>("save_tag_group", { id, name, color }),
   deleteTagGroup: (id: string) => invoke<void>("delete_tag_group", { id }),
   setTagGroup: (tag: string, groupId: string | null) => invoke<void>("set_tag_group", { tag, groupId }),
+  cropItem: (id: string, x: number, y: number, w: number, h: number) => invoke<Item>("crop_item", { id, x, y, w, h }),
   renameTag: (from: string, to: string) => invoke<void>("rename_tag", { from, to }),
   rebuildIndex: () => invoke<number>("rebuild_index"),
   reveal: (id: string) => invoke<void>("reveal_item", { id }),

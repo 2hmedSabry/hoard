@@ -108,12 +108,18 @@ pub fn import_file(items_dir: &Path, src: &Path, folder: Option<&str>, seen: &Mu
             thumb: None,
             duration: None,
             annotations: vec![],
+            camera: None,
+            exif_read: false,
             labels: vec![],
             ocr: String::new(),
             analyzed: false,
             fhash: Some(fhash.clone()),
             dhash: None,
         };
+        if item.kind == "image" {
+            item.camera = crate::exif_info::read(&dst);
+            item.exif_read = true;
+        }
         if let Some(img) = make_thumb(&dst, &dir, &mut item) {
             item.palette = palette::extract(&img);
             item.dhash = Some(hashing::dhash(&img));

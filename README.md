@@ -14,7 +14,8 @@ Built with [Tauri 2](https://tauri.app), Rust and React.
 - **Smart folders.** Save rules (tags, type, size, rating, orientation, colour, date added and more, matching all or any) and matching items collect themselves.
 - **Duplicates.** Exact copies are skipped on import. A review screen finds identical files and resized or re-saved pictures, suggests the best copy to keep, and moves the rest to the Trash while keeping their tags, folders and notes.
 - **Browser extension.** Save images, videos and screenshots from Chrome, Edge, Brave or Arc with a right-click, or pick several images on a page at once. See [extension/README.md](extension/README.md).
-- **Edit in place.** Batch rename with patterns (`{name}`, `{n:3}`, `{date}`, `{w}×{h}` and more, plus find and replace). Rotate and flip images; thumbnails, sizes and colours update automatically.
+- **Edit in place.** Batch rename with patterns (`{name}`, `{n:3}`, `{date}`, `{w}×{h}` and more, plus find and replace). Rotate, flip and crop images; thumbnails, sizes and colours update automatically.
+- **Camera details.** Camera, lens, date taken and exposure are read from photos (never GPS position). They are searchable and work in smart folders.
 - **Packs and export.** Share items as a `.hoardpack` (files plus tags, ratings, notes and links) and import packs from the menu or by dropping them in. Copy originals out to any folder with tidy names.
 - **Area comments.** In the preview, drag a box on a picture and pin a comment to it. Comments are searchable and can drive smart folders.
 - **On-device AI (macOS).** Using Apple's Vision framework, entirely on your Mac: suggested tags for every picture, text found in images (English, Arabic and more) becomes searchable, and **Find similar** shows the pictures that look most alike. Nothing is uploaded.

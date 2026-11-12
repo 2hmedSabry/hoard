@@ -229,6 +229,13 @@ export default function Inspector(p: Props) {
           {one.width > 0 && <><dt>{tr("Size")}</dt><dd>{one.width} × {one.height}</dd></>}
           {one.duration != null && <><dt>{tr("Length")}</dt><dd>{formatDuration(one.duration)}</dd></>}
           <dt>{tr("File size")}</dt><dd>{formatSize(one.size)}</dd>
+          {one.camera?.camera && <><dt>{tr("Camera")}</dt><dd>{one.camera.camera}</dd></>}
+          {one.camera?.lens && <><dt>{tr("Lens")}</dt><dd>{one.camera.lens}</dd></>}
+          {(one.camera?.exposure || one.camera?.aperture || one.camera?.iso || one.camera?.focalLength) && <>
+            <dt>{tr("Exposure")}</dt>
+            <dd dir="ltr">{[one.camera.exposure && `${one.camera.exposure}s`, one.camera.aperture, one.camera.iso && `ISO ${one.camera.iso}`, one.camera.focalLength].filter(Boolean).join(" · ")}</dd>
+          </>}
+          {one.camera?.takenAt && <><dt>{tr("Taken")}</dt><dd>{new Date(one.camera.takenAt).toLocaleString(undefined, { timeZone: "UTC" })}</dd></>}
           <dt>{tr("Added")}</dt><dd>{new Date(one.createdAt).toLocaleString()}</dd>
           <dt>{tr("Edited")}</dt><dd>{new Date(one.modifiedAt).toLocaleString()}</dd>
         </dl>

@@ -12,6 +12,7 @@ export default function Preview({ root, items, id, onNavigate, onClose, onItemCh
   const item = items[idx];
   const [actual, setActual] = useState(false);
   const [annotating, setAnnotating] = useState(false);
+  const [cropping, setCropping] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [every, setEvery] = useState(4);
 
@@ -45,8 +46,9 @@ export default function Preview({ root, items, id, onNavigate, onClose, onItemCh
   if (item.kind === "image" && browserImage) {
     body = actual
       ? <img className="actual" src={src} onClick={() => setActual(false)} title={tr("Click to fit")} />
-      : <Annotator src={src} annotations={item.annotations ?? []} editing={annotating}
-          onSave={(list) => api.setAnnotations(item.id, list).then(onItemChanged).catch(fail)} />;
+      : <Annotator key={item.modifiedAt} src={`${src}?v=${item.modifiedAt}`} annotations={item.annotations ?? []} editing={annotating || cropping}
+          onSave={(list) => api.setAnnotations(item.id, list).then(onItemChanged).catch(fail)}
+          onCrop={cropping ? (d) => { setCropping(false); api.cropItem(item.id, d.x, d.y, d.w, d.h).then(onItemChanged).catch(fail); } : undefined} />;
   } else if (item.kind === "video") {
     body = <video src={src} controls autoPlay loop />;
   } else if (item.kind === "audio") {
@@ -70,7 +72,11 @@ export default function Preview({ root, items, id, onNavigate, onClose, onItemCh
         <span className="muted">{idx + 1} / {items.length}</span>
         <span className="grow" />
         {item.kind === "image" && browserImage && <>
-          <button className={annotating ? "primary" : ""} onClick={() => { setAnnotating(!annotating); setActual(false); }}
+          {["jpg", "jpeg", "png", "gif", "webp", "bmp", "tif", "tiff"].includes(item.ext) && (
+            <button className={cropping ? "primary" : ""} onClick={() => { setCropping(!cropping); setAnnotating(false); setActual(false); }}
+              title={tr("Drag on the picture to choose the area to keep")}>{cropping ? tr("Cancel crop") : tr("Crop")}</button>
+          )}
+          <button className={annotating ? "primary" : ""} onClick={() => { setAnnotating(!annotating); setCropping(false); setActual(false); }}
             title={tr("Drag on the picture to comment on an area")}>{annotating ? tr("Done commenting") : tr("Comment on area") + (item.annotations?.length ? ` (${item.annotations.length})` : "")}</button>
           <button onClick={() => { setActual(!actual); setAnnotating(false); }}>{actual ? tr("Fit") : "100%"}</button>
         </>}

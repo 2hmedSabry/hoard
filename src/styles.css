@@ -443,3 +443,6 @@ input, textarea, select { padding: 4px 8px; border-radius: 6px; }
 .switch-row .icon { width: 16px; text-align: center; color: var(--muted); }
 .switch-row.on { background: var(--accent); color: #fff; }
 .switch-row.on .muted, .switch-row.on .icon { color: #fffc; }
+
+.crop-box { position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55); line-height: 1.35; }
+.crop-actions { flex-direction: row; width: auto; white-space: nowrap; }

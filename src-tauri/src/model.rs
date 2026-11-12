@@ -51,6 +51,11 @@ pub struct Item {
     pub ocr: String,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub analyzed: bool,
+    /// Camera details from EXIF, when the photo has them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub camera: Option<CameraInfo>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub exif_read: bool,
     /// Comments pinned to areas of the picture.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub annotations: Vec<Annotation>,
@@ -60,6 +65,19 @@ pub struct Item {
     /// Picture fingerprint for near-duplicates (see hashing::dhash).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dhash: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct CameraInfo {
+    pub camera: Option<String>,
+    pub lens: Option<String>,
+    /// When the photo was taken (ms since 1970, camera clock).
+    pub taken_at: Option<i64>,
+    pub exposure: Option<String>,
+    pub aperture: Option<String>,
+    pub iso: Option<String>,
+    pub focal_length: Option<String>,
 }
 
 /// A comment on a rectangle of an image. Coordinates are fractions (0–1) of

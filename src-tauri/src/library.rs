@@ -61,6 +61,7 @@ fn upsert(c: &Connection, it: &Item) -> Result<()> {
             std::iter::once(it.note.as_str())
                 .chain(it.annotations.iter().map(|a| a.text.as_str()))
                 .chain(std::iter::once(it.ocr.as_str()))
+                .chain(it.camera.iter().flat_map(|c| [c.camera.as_deref().unwrap_or(""), c.lens.as_deref().unwrap_or("")]))
                 .collect::<Vec<_>>()
                 .join(" "),
             // Suggested labels are searchable like tags.
@@ -668,6 +669,27 @@ impl Library {
         Ok(rows.collect::<std::result::Result<_, _>>()?)
     }
 
+    /// Reads camera details for older image items, a few at a time.
+    pub fn backfill_exif(&mut self, limit: usize) -> Result<usize> {
+        let ids: Vec<String> = {
+            let mut st = self.db.prepare(
+                "SELECT id FROM items WHERE kind='image' AND coalesce(json_extract(json,'$.exifRead'),0)=0 LIMIT ?1",
+            )?;
+            let rows = st.query_map([limit as i64], |r| r.get::<_, String>(0))?;
+            rows.collect::<std::result::Result<_, _>>()?
+        };
+        let mut changed = vec![];
+        for id in ids {
+            let mut it = self.get(&id)?;
+            it.camera = crate::exif_info::read(&self.item_dir(&id).join(&it.file_name));
+            it.exif_read = true;
+            changed.push(it);
+        }
+        let n = changed.len();
+        self.save_items(&changed)?;
+        Ok(n)
+    }
+
     /// Saves analysis results without touching the "edited" date.
     pub fn save_analysis(&mut self, items: &[Item]) -> Result<()> {
         self.save_items(items)
@@ -717,19 +739,47 @@ impl Library {
     /// Rotates or flips the original image file, then refreshes its thumbnail,
     /// size, palette and fingerprints. `op`: "cw", "ccw", "flip_h", "flip_v".
     pub fn transform(&mut self, ids: &[String], op: &str) -> Result<Vec<Item>> {
+        if !matches!(op, "cw" | "ccw" | "flip_h" | "flip_v") {
+            bail!("Unknown change {op}");
+        }
+        self.rewrite_images(ids, |img| match op {
+            "cw" => img.rotate90(),
+            "ccw" => img.rotate270(),
+            "flip_h" => img.fliph(),
+            _ => img.flipv(),
+        })
+    }
+
+    /// Crops an image to a rectangle given as fractions (0–1) of its size.
+    pub fn crop(&mut self, id: &str, x: f32, y: f32, w: f32, h: f32) -> Result<Item> {
+        if w <= 0.0 || h <= 0.0 {
+            bail!("Choose an area to keep");
+        }
+        let mut out = self.rewrite_images(&[id.to_string()], |img| {
+            let (iw, ih) = (img.width() as f32, img.height() as f32);
+            let x0 = (x.clamp(0.0, 1.0) * iw).floor() as u32;
+            let y0 = (y.clamp(0.0, 1.0) * ih).floor() as u32;
+            let cw = ((w.clamp(0.0, 1.0) * iw).round() as u32).clamp(1, img.width() - x0);
+            let ch = ((h.clamp(0.0, 1.0) * ih).round() as u32).clamp(1, img.height() - y0);
+            img.crop_imm(x0, y0, cw, ch)
+        })?;
+        // Area comments no longer line up with the picture.
+        let mut it = out.remove(0);
+        if !it.annotations.is_empty() {
+            it.annotations.clear();
+            self.save_items(std::slice::from_ref(&it))?;
+        }
+        Ok(it)
+    }
+
+    fn rewrite_images(&mut self, ids: &[String], edit: impl Fn(image::DynamicImage) -> image::DynamicImage) -> Result<Vec<Item>> {
         let mut changed = vec![];
         for id in ids {
             let mut it = self.get(id)?;
             let dir = self.item_dir(id);
             let file = dir.join(&it.file_name);
             let Ok(img) = image::open(&file) else { continue };
-            let img = match op {
-                "cw" => img.rotate90(),
-                "ccw" => img.rotate270(),
-                "flip_h" => img.fliph(),
-                "flip_v" => img.flipv(),
-                _ => bail!("Unknown change {op}"),
-            };
+            let img = edit(img);
             let tmp = dir.join(format!(".edit.{}", it.ext));
             match it.ext.as_str() {
                 "jpg" | "jpeg" => {
@@ -753,7 +803,7 @@ impl Library {
             changed.push(it);
         }
         if changed.is_empty() {
-            bail!("Only images can be rotated or flipped");
+            bail!("Only JPEG, PNG, GIF, WebP, BMP and TIFF images can be edited");
         }
         self.save_items(&changed)?;
         Ok(changed)

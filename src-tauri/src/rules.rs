@@ -41,6 +41,21 @@ pub fn eval(rule: &Rule, it: &Item, meta: &LibraryMeta, now: i64) -> bool {
         },
         "url" => text_op(&it.url, &rule.op, v),
         "ocr" => text_op(&it.ocr, &rule.op, v),
+        "camera" => {
+            let c = it.camera.as_ref();
+            let s = [c.and_then(|c| c.camera.clone()), c.and_then(|c| c.lens.clone())].into_iter().flatten().collect::<Vec<_>>().join(" ");
+            text_op(&s, &rule.op, v)
+        }
+        "taken" => {
+            let Some(t) = it.camera.as_ref().and_then(|c| c.taken_at) else { return false };
+            let Ok(days) = v.trim().parse::<f64>() else { return false };
+            let age = (now - t) as f64 / DAY_MS;
+            match rule.op.as_str() {
+                "within_days" => age <= days,
+                "older_than_days" => age > days,
+                _ => false,
+            }
+        }
         "labels" => {
             let want = v.trim().to_lowercase();
             match rule.op.as_str() {

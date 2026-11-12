@@ -1,5 +1,6 @@
 mod ai;
 mod api_server;
+mod exif_info;
 mod hashing;
 mod import;
 mod library;
@@ -381,6 +382,13 @@ fn set_tag_group(st: State<AppState>, tag: String, group_id: Option<String>) -> 
 }
 
 #[tauri::command]
+async fn crop_item(app: AppHandle, id: String, x: f32, y: f32, w: f32, h: f32) -> R<Item> {
+    tauri::async_runtime::spawn_blocking(move || with_lib(&app.state::<AppState>(), |l| l.crop(&id, x, y, w, h)))
+        .await
+        .map_err(err)?
+}
+
+#[tauri::command]
 fn add_watched_folder(st: State<AppState>, path: String, folder_id: Option<String>) -> R<()> {
     with_lib(&st, |l| l.add_watched(&path, folder_id))
 }
@@ -441,6 +449,7 @@ pub fn run() {
             import_paths,
             add_watched_folder,
             set_folder_color,
+            crop_item,
             save_tag_group,
             delete_tag_group,
             set_tag_group,
@@ -547,6 +556,8 @@ mod tests {
         assert_eq!((rotated.width, rotated.height), (720, 1280));
         assert_ne!(rotated.fhash, pat.fhash);
         assert!(rotated.thumb.is_some());
+        let cropped = lib.crop(&pat.id, 0.0, 0.25, 1.0, 0.5).unwrap();
+        assert_eq!((cropped.width, cropped.height), (720, 640));
         lib.rename_many(&[(pat.id.clone(), "Pattern 001".into())]).unwrap();
         assert_eq!(lib.get(&pat.id).unwrap().name, "Pattern 001");
         assert!(lib.transform(&[q(&lib, |q| q.kinds = vec!["audio".into()])[0].id.clone()], "cw").is_err(), "audio can't rotate");
@@ -582,13 +593,24 @@ mod tests {
         lib.set_tag_group("warm", None).unwrap();
         assert!(lib.meta.tag_groups[0].tags.is_empty());
 
+        // Camera details come from EXIF and drive search and rules.
+        let photo = q(&lib, |q| q.text = Some("camera-photo".into())).remove(0);
+        let cam = photo.camera.clone().expect("EXIF read");
+        assert_eq!(cam.camera.as_deref(), Some("TestCam X100"));
+        assert_eq!(cam.aperture.as_deref(), Some("f/2.8"));
+        assert_eq!(cam.taken_at, Some(1_709_209_800_000));
+        assert_eq!(q(&lib, |q| q.text = Some("X100".into()))[0].id, photo.id, "camera is searchable");
+        let rule = Rule { field: "camera".into(), op: "contains".into(), value: "testcam".into() };
+        let sf = lib.create_smart_folder("TestCam shots", "all", vec![rule]).unwrap();
+        assert_eq!(names(&lib, &sf.id), vec!["camera-photo"]);
+
         // Index is disposable: delete it and reopen.
         let root = lib.root.clone();
         drop(lib);
         for f in ["index.db", "index.db-wal", "index.db-shm"] { let _ = fs::remove_file(root.join(f)); }
         let lib = Library::open(&root).unwrap();
         assert_eq!(lib.stats().unwrap().all, files.len() as i64);
-        assert_eq!(lib.meta.smart_folders.len(), 1, "smart folders persist");
+        assert_eq!(lib.meta.smart_folders.len(), 2, "smart folders persist");
         println!("library at {}", root.display());
     }
 }

@@ -78,7 +78,16 @@ pub fn label_text(id: &str) -> String {
 
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || loop {
-        let worked = run_batch(&app).unwrap_or(false);
+        let mut worked = run_batch(&app).unwrap_or(false);
+        if !worked {
+            // Quiet moment: fill in camera details for items imported before they existed.
+            let st = app.state::<AppState>();
+            let filled = match st.lib.lock() {
+                Ok(mut g) => g.as_mut().map(|lib| lib.backfill_exif(50).map(|n| n > 0).unwrap_or(false)).unwrap_or(false),
+                Err(_) => false,
+            };
+            worked = filled;
+        }
         std::thread::sleep(if worked { Duration::from_millis(300) } else { Duration::from_secs(4) });
     });
 }

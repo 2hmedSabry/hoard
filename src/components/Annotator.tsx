@@ -5,12 +5,14 @@ import type { Annotation } from "../types";
 type Props = {
   src: string; annotations: Annotation[]; editing: boolean;
   onSave: (list: Annotation[]) => void;
+  /** When set, dragging picks an area to crop instead of adding a comment. */
+  onCrop?: (d: Draft) => void;
 };
 
 type Draft = { x: number; y: number; w: number; h: number };
 
 /** An image with comment boxes over it. In editing mode, drag to add a box. */
-export default function Annotator({ src, annotations, editing, onSave }: Props) {
+export default function Annotator({ src, annotations, editing, onSave, onCrop }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<{ sx: number; sy: number; d: Draft } | null>(null);
   const [pending, setPending] = useState<Draft | null>(null);
@@ -56,7 +58,7 @@ export default function Annotator({ src, annotations, editing, onSave }: Props) 
   return (
     <div ref={box} className={`annotator${editing ? " editing" : ""}`} onMouseDown={down}>
       <img src={src} draggable={false} />
-      {annotations.map((a, i) => (
+      {!onCrop && annotations.map((a, i) => (
         <div key={a.id || i} className={`anno${open === a.id ? " open" : ""}`} style={pct(a)}
           onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setOpen(open === a.id ? null : a.id); }}>
           <span className="anno-num">{i + 1}</span>
@@ -69,7 +71,15 @@ export default function Annotator({ src, annotations, editing, onSave }: Props) 
         </div>
       ))}
       {drag && <div className="anno drawing" style={pct(drag.d)} />}
-      {pending && (
+      {pending && onCrop && (
+        <div className="crop-box" style={pct(pending)} onMouseDown={(e) => e.stopPropagation()}>
+          <div className="anno-pop crop-actions" onClick={(e) => e.stopPropagation()}>
+            <button onClick={() => setPending(null)}>{tr("Cancel")}</button>
+            <button className="primary" onClick={() => { const d = pending; setPending(null); onCrop(d); }}>{tr("Crop to this area")}</button>
+          </div>
+        </div>
+      )}
+      {pending && !onCrop && (
         <div className="anno drawing" style={pct(pending)} onMouseDown={(e) => e.stopPropagation()}>
           <div className="anno-pop" onClick={(e) => e.stopPropagation()}>
             <textarea autoFocus rows={3} placeholder={tr("Comment on this area")} value={text} onChange={(e) => setText(e.target.value)}

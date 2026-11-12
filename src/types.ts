@@ -5,8 +5,10 @@ export type Item = {
   width: number; height: number; tags: string[]; folders: string[]; rating: number;
   note: string; url: string; palette: Swatch[]; createdAt: number; modifiedAt: number;
   deleted: boolean; thumb: string | null; duration: number | null;
+  camera?: CameraInfo | null;
   fhash?: string; dhash?: string; annotations?: Annotation[]; labels?: string[]; ocr?: string; analyzed?: boolean;
 };
+export type CameraInfo = { camera: string | null; lens: string | null; takenAt: number | null; exposure: string | null; aperture: string | null; iso: string | null; focalLength: string | null };
 export type Annotation = { id: string; x: number; y: number; w: number; h: number; text: string; createdAt: number };
 export type Rule = { field: string; op: string; value: string };
 export type SmartFolder = { id: string; name: string; matchMode: "all" | "any"; rules: Rule[] };
