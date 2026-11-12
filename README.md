@@ -85,6 +85,11 @@ Maintainers: add the updater private key as the repository secret `TAURI_SIGNING
 
 See [CONTRIBUTING.md](CONTRIBUTING.md). Please read the [Code of Conduct](CODE_OF_CONDUCT.md) and report security problems as described in [SECURITY.md](SECURITY.md).
 
+## Credits
+
+- Icons: [Lucide](https://lucide.dev) (ISC licence)
+- Fonts: [Inter](https://rsms.me/inter/) and [IBM Plex Sans Arabic](https://github.com/IBM/plex) (SIL Open Font Licence), bundled via Fontsource
+
 ## License
 
 [MIT](LICENSE)

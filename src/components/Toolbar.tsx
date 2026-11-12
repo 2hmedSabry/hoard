@@ -1,3 +1,4 @@
+import { I } from "../icons";
 import { t as tr, count as countWord } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { flattenFolders } from "../api";
@@ -45,7 +46,7 @@ export default function Toolbar({ query, setQuery, thumbSize, setThumbSize, onIm
           <span className="muted">{countWord(count, "1 item", "{n} items")}{selectedCount ? " · " + tr("{n} selected", { n: selectedCount }) : ""}</span>
         </div>
         <div className="search">
-          <span className="muted">⌕</span>
+          <span className="muted"><I g="⌕" /></span>
           <input ref={search} placeholder={tr("Search names, tags, notes, links (⌘F)")} value={query.text}
             onChange={(e) => setQuery((q) => ({ ...q, text: e.target.value }))}
             onKeyDown={(e) => e.key === "Escape" && setQuery((q) => ({ ...q, text: "" }))} />

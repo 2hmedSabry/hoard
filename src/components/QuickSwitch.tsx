@@ -1,3 +1,4 @@
+import { I } from "../icons";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flattenFolders } from "../api";
 import { t as tr } from "../i18n";
@@ -62,7 +63,7 @@ export default function QuickSwitch({ lib, stats, setQuery, onClose }: Props) {
         <div className="switch-list" ref={list}>
           {shown.map((e, i) => (
             <div key={e.key} className={`switch-row${i === pos ? " on" : ""}`} onMouseEnter={() => setPos(i)} onClick={() => pick(e)}>
-              <span className="icon">{e.icon}</span><span className="label">{e.label}</span><span className="muted small">{e.hint}</span>
+              <span className="icon"><I g={e.icon} /></span><span className="label">{e.label}</span><span className="muted small">{e.hint}</span>
             </div>
           ))}
           {!shown.length && <p className="muted pad">{tr("Nothing found.")}</p>}

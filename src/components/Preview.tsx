@@ -1,3 +1,4 @@
+import { I } from "../icons";
 import { t as tr } from "../i18n";
 import { useEffect, useState } from "react";
 import { api, fileUrl, thumbUrl } from "../api";
@@ -93,8 +94,8 @@ export default function Preview({ root, items, id, onNavigate, onClose, onItemCh
       <div className={`preview-body${actual ? " scroll" : ""}`} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
         <div className="preview-content" onClick={(e) => e.stopPropagation()}>{body}</div>
       </div>
-      {idx > 0 && <button className="nav prev" onClick={(e) => { e.stopPropagation(); onNavigate(items[idx - 1].id); }}>‹</button>}
-      {idx < items.length - 1 && <button className="nav next" onClick={(e) => { e.stopPropagation(); onNavigate(items[idx + 1].id); }}>›</button>}
+      {idx > 0 && <button className="nav prev" onClick={(e) => { e.stopPropagation(); onNavigate(items[idx - 1].id); }}><I g="‹" /></button>}
+      {idx < items.length - 1 && <button className="nav next" onClick={(e) => { e.stopPropagation(); onNavigate(items[idx + 1].id); }}><I g="›" /></button>}
     </div>
   );
 }

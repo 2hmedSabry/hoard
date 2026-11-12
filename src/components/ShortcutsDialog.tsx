@@ -1,3 +1,4 @@
+import { I } from "../icons";
 import { useEffect, useState } from "react";
 import { t as tr } from "../i18n";
 import { comboOf, DEFAULTS, getShortcuts, LABELS, pretty, resetShortcuts, setShortcut, type Action } from "../shortcuts";
@@ -38,7 +39,7 @@ export default function ShortcutsDialog({ onClose }: { onClose: () => void }) {
                 <button className={`kbd${recording === a ? " rec" : ""}`} onClick={() => setRecording(a)}>
                   {recording === a ? tr("Press keys…") : pretty(map[a])}
                 </button>
-                {map[a] !== DEFAULTS[a] && <button className="icon-btn" title={tr("Reset")} onClick={() => { setShortcut(a, DEFAULTS[a]); setMap(getShortcuts()); }}>↺</button>}
+                {map[a] !== DEFAULTS[a] && <button className="icon-btn" title={tr("Reset")} onClick={() => { setShortcut(a, DEFAULTS[a]); setMap(getShortcuts()); }}><I g="↺" /></button>}
               </div>
             );
           })}

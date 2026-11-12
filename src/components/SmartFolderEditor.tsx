@@ -1,3 +1,4 @@
+import { I } from "../icons";
 import { t as tr } from "../i18n";
 import { useEffect, useState } from "react";
 import { flattenFolders } from "../api";
@@ -123,7 +124,7 @@ export default function SmartFolderEditor({ initial, folders, onSave, onClose }:
               </select>
               {valueInput(r, i)}
               <button className="icon-btn" title={tr("Remove rule")} disabled={rules.length === 1}
-                onClick={() => setRules((rs) => rs.filter((_, j) => j !== i))}>×</button>
+                onClick={() => setRules((rs) => rs.filter((_, j) => j !== i))}><I g="×" /></button>
             </div>
           ))}
         </div>

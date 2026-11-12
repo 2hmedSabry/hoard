@@ -1,3 +1,4 @@
+import { I } from "../icons";
 import { t as tr, count } from "../i18n";
 import { useEffect, useMemo, useState } from "react";
 import { save as saveDialog, open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -63,10 +64,10 @@ export default function Inspector(p: Props) {
   const tools = (
     <div className="tool-row">
       {images.length > 0 && <>
-        <button disabled={busy} title={tr("Rotate left")} onClick={() => transform("ccw")}>⟲</button>
-        <button disabled={busy} title={tr("Rotate right")} onClick={() => transform("cw")}>⟳</button>
-        <button disabled={busy} title={tr("Flip horizontally")} onClick={() => transform("flip_h")}>⇋</button>
-        <button disabled={busy} title={tr("Flip vertically")} onClick={() => transform("flip_v")}>⇵</button>
+        <button disabled={busy} title={tr("Rotate left")} onClick={() => transform("ccw")}><I g="⟲" /></button>
+        <button disabled={busy} title={tr("Rotate right")} onClick={() => transform("cw")}><I g="⟳" /></button>
+        <button disabled={busy} title={tr("Flip horizontally")} onClick={() => transform("flip_h")}><I g="⇋" /></button>
+        <button disabled={busy} title={tr("Flip vertically")} onClick={() => transform("flip_v")}><I g="⇵" /></button>
       </>}
       <button title={tr("Save these items as a .hoardpack to share or move to another library")} onClick={async () => {
         const dest = await saveDialog({ title: tr("Export pack"), defaultPath: `${items.length === 1 ? items[0].name : "Hoard pack"}.hoardpack`, filters: [{ name: "Hoard pack", extensions: ["hoardpack"] }] });
@@ -124,7 +125,7 @@ export default function Inspector(p: Props) {
         <section>
           <label>{tr("Tags in common")}</label>
           <div className="tags">
-            {common.map((t) => <span key={t} className="tag">{t}<button onClick={() => p.onUpdate(ids, { removeTags: [t] })}>×</button></span>)}
+            {common.map((t) => <span key={t} className="tag">{t}<button onClick={() => p.onUpdate(ids, { removeTags: [t] })}><I g="×" /></button></span>)}
           </div>
           <TagAdder known={known} onAdd={(tags) => p.onUpdate(ids, { addTags: tags })} />
         </section>
@@ -167,7 +168,7 @@ export default function Inspector(p: Props) {
         <div className="tags">
           {one.tags.map((tg) => (
             <span key={tg} className="tag"><span onClick={() => p.onTag(tg)} title={tr("Filter by this tag")}>{tg}</span>
-              <button onClick={() => save({ removeTags: [tg] })}>×</button></span>
+              <button onClick={() => save({ removeTags: [tg] })}><I g="×" /></button></span>
           ))}
         </div>
         <TagAdder known={known.filter((k) => !one.tags.includes(k))} onAdd={(tags) => save({ addTags: tags })} />
@@ -193,7 +194,7 @@ export default function Inspector(p: Props) {
         <label>{tr("Folders")}</label>
         <div className="tags">
           {one.folders.map((f) => (
-            <span key={f} className="tag folder">{folderNames.get(f) ?? "?"}<button onClick={() => save({ removeFolders: [f] })}>×</button></span>
+            <span key={f} className="tag folder">{folderNames.get(f) ?? "?"}<button onClick={() => save({ removeFolders: [f] })}><I g="×" /></button></span>
           ))}
         </div>
         <FolderAdder folders={folders} exclude={one.folders} onAdd={(f) => save({ addFolders: [f] })} />
@@ -218,7 +219,7 @@ export default function Inspector(p: Props) {
         <div className="url-row">
           <input value={url} placeholder="https://" onChange={(e) => setUrl(e.target.value)}
             onBlur={() => url !== one.url && save({ url })} onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()} />
-          {one.url && /^https?:\/\//.test(one.url) && <button className="icon-btn" title={tr("Open link in browser")} onClick={() => api.openUrl(one.url).catch(p.fail)}>↗</button>}
+          {one.url && /^https?:\/\//.test(one.url) && <button className="icon-btn" title={tr("Open link in browser")} onClick={() => api.openUrl(one.url).catch(p.fail)}><I g="↗" /></button>}
         </div>
       </section>
 

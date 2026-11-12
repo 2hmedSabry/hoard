@@ -1,3 +1,4 @@
+import { I } from "../icons";
 import { t as tr } from "../i18n";
 import { useEffect, useState } from "react";
 import { ask, open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -97,7 +98,7 @@ export default function Sidebar(p: Props) {
     <div key={t} className={`nav-row tag-row${query.tags.includes(t) ? " active" : ""}`}
       onClick={() => setQuery((q) => ({ ...q, tags: q.tags.includes(t) ? q.tags.filter((x) => x !== t) : [...q.tags, t] }))}
       onDoubleClick={() => setEditing({ kind: "tag", tag: t })}>
-      <span className="icon" style={color ? { color } : undefined}>#</span>
+      <span className="icon" style={color ? { color } : undefined}><I g="#" /></span>
       {editing?.kind === "tag" && editing.tag === t ? (
         <InlineEdit initial={t} onDone={(v) => {
           setEditing(null);
@@ -105,7 +106,7 @@ export default function Sidebar(p: Props) {
         }} />
       ) : <span className="label">{t}</span>}
       <span className="count">{n}</span>
-      <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === "tag:" + t ? null : "tag:" + t); }}>⋯</span>
+      <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === "tag:" + t ? null : "tag:" + t); }}><I g="⋯" /></span>
       {menu === "tag:" + t && (
         <div className="menu" onClick={(e) => e.stopPropagation()}>
           {(lib.meta.tagGroups ?? []).length > 0 && <div className="menu-label">{tr("Move to group")}</div>}
@@ -128,7 +129,7 @@ export default function Sidebar(p: Props) {
 
   const row = (label: string, scope: Scope, count?: number, icon?: string) => (
     <button className={`nav-row${active(scope) ? " active" : ""}`} onClick={() => go(scope)}>
-      <span className="icon">{icon}</span><span className="label">{tr(label)}</span>
+      <span className="icon"><I g={icon ?? ""} /></span><span className="label">{tr(label)}</span>
       {count != null && <span className="count">{count}</span>}
     </button>
   );
@@ -145,20 +146,20 @@ export default function Sidebar(p: Props) {
           onDoubleClick={() => setEditing({ kind: "rename", id: f.id })}
         >
           <span className={`twisty${f.children.length ? "" : " empty"}${isOpen ? " open" : ""}`}
-            onClick={(e) => { e.stopPropagation(); toggle(f.id); }}>▸</span>
-          <span className="icon folder-icon" style={f.color ? { color: f.color } : undefined}>{f.lock ? (unlocked.has(f.id) ? "🔓" : "🔒") : f.color ? "■" : "▢"}</span>
+            onClick={(e) => { e.stopPropagation(); toggle(f.id); }}><I g="▸" /></span>
+          <span className="icon folder-icon" style={f.color ? { color: f.color } : undefined}><I g={f.lock ? (unlocked.has(f.id) ? "🔓" : "🔒") : f.color ? "■" : "▢"} /></span>
           {editing?.kind === "rename" && editing.id === f.id ? (
             <InlineEdit initial={f.name} onDone={(v) => { setEditing(null); if (v && v !== f.name) run(() => api.renameFolder(f.id, v)); }} />
           ) : <span className="label">{f.name}</span>}
           <span className="count">{stats?.folders[f.id] ?? ""}</span>
-          <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === f.id ? null : f.id); }}>⋯</span>
+          <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === f.id ? null : f.id); }}><I g="⋯" /></span>
           {menu === f.id && (
             <div className="menu" onClick={(e) => e.stopPropagation()}>
               <button onClick={() => { setMenu(null); toggle(f.id, true); setEditing({ kind: "new", parent: f.id }); }}>{tr("New subfolder")}</button>
               <button onClick={() => { setMenu(null); setEditing({ kind: "rename", id: f.id }); }}>{tr("Rename")}</button>
               <div className="swatch-row">
                 {COLORS.map((c) => <button key={c} className="swatch" style={{ background: c }} onClick={() => { setMenu(null); run(() => api.setFolderColor(f.id, c)); }} />)}
-                {f.color && <button className="swatch none" title={tr("No colour")} onClick={() => { setMenu(null); run(() => api.setFolderColor(f.id, null)); }}>×</button>}
+                {f.color && <button className="swatch none" title={tr("No colour")} onClick={() => { setMenu(null); run(() => api.setFolderColor(f.id, null)); }}><I g="×" /></button>}
               </div>
               {depth > 0 && <button onClick={() => { setMenu(null); run(() => api.moveFolder(f.id, null)); }}>{tr("Move to top level")}</button>}
               {!f.lock && <button onClick={() => { setMenu(null); setPwPrompt({ mode: "set", folder: f }); }}>{tr("Lock with password…")}</button>}
@@ -191,7 +192,7 @@ export default function Sidebar(p: Props) {
         ) : (
           <>
             <div className="lib-name" title={lib.root}>{lib.meta.name}</div>
-            <span className="chev">⌄</span>
+            <span className="chev"><I g="⌄" /></span>
           </>
         )}
         {libMenu && (
@@ -235,7 +236,7 @@ export default function Sidebar(p: Props) {
           {row("Untagged", "untagged", stats?.untagged, "#")}
           {row("Duplicates", "duplicates", undefined, "⧉")}
           <div className={`nav-row${active("trash") ? " active" : ""}`} onClick={() => go("trash")} role="button">
-            <span className="icon">⌫</span><span className="label">{tr("Trash")}</span>
+            <span className="icon"><I g="⌫" /></span><span className="label">{tr("Trash")}</span>
             {active("trash") && !!stats?.trash && <span className="link small" onClick={(e) => { e.stopPropagation(); p.onEmptyTrash(); }}>{tr("Empty")}</span>}
             <span className="count">{stats?.trash}</span>
           </div>
@@ -243,15 +244,15 @@ export default function Sidebar(p: Props) {
 
         <div className="section-title">
           <span>{tr("Smart folders")}</span>
-          <button className="icon-btn" title={tr("New smart folder")} onClick={() => setSmartEdit("new")}>＋</button>
+          <button className="icon-btn" title={tr("New smart folder")} onClick={() => setSmartEdit("new")}><I g="＋" /></button>
         </div>
         <div className="section">
           {lib.meta.smartFolders.map((sf) => (
             <div key={sf.id} className={`nav-row${active("smart", sf.id) ? " active" : ""}`} onClick={() => go("smart", sf.id)}
               onDoubleClick={() => setSmartEdit(sf)}>
-              <span className="icon">✦</span><span className="label">{sf.name}</span>
+              <span className="icon"><I g="✦" /></span><span className="label">{sf.name}</span>
               <span className="count">{stats?.smart[sf.id] ?? ""}</span>
-              <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === sf.id ? null : sf.id); }}>⋯</span>
+              <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === sf.id ? null : sf.id); }}><I g="⋯" /></span>
               {menu === sf.id && (
                 <div className="menu" onClick={(e) => e.stopPropagation()}>
                   <button onClick={() => { setMenu(null); setSmartEdit(sf); }}>{tr("Edit rules…")}</button>
@@ -269,7 +270,7 @@ export default function Sidebar(p: Props) {
 
         <div className="section-title" data-drop="__top">
           <span>{tr("Folders")}</span>
-          <button className="icon-btn" title={tr("New folder")} onClick={() => setEditing({ kind: "new", parent: null })}>＋</button>
+          <button className="icon-btn" title={tr("New folder")} onClick={() => setEditing({ kind: "new", parent: null })}><I g="＋" /></button>
         </div>
         <div className="section">
           {lib.meta.folders.map((f) => renderFolder(f, 0))}
@@ -283,7 +284,7 @@ export default function Sidebar(p: Props) {
 
         <div className="section-title">
           <span>{tr("Tags")}</span>
-          <button className="icon-btn" title={tr("New tag group")} onClick={() => setEditing({ kind: "group", id: "" })}>＋</button>
+          <button className="icon-btn" title={tr("New tag group")} onClick={() => setEditing({ kind: "group", id: "" })}><I g="＋" /></button>
         </div>
         <div className="section tag-list">
           {editing?.kind === "group" && editing.id === "" && (
@@ -295,13 +296,13 @@ export default function Sidebar(p: Props) {
             return (
               <div key={g.id} className="tag-group">
                 <div className="nav-row group-row" onClick={() => toggleGroup(g.id)}>
-                  <span className={`twisty${open ? " open" : ""}`}>▸</span>
+                  <span className={`twisty${open ? " open" : ""}`}><I g="▸" /></span>
                   <span className="dot" style={{ background: g.color ?? "var(--muted)" }} />
                   {editing?.kind === "group" && editing.id === g.id
                     ? <InlineEdit initial={g.name} onDone={(v) => { setEditing(null); if (v && v !== g.name) run(() => api.saveTagGroup(g.id, v, g.color ?? null)); }} />
                     : <span className="label">{g.name}</span>}
                   <span className="count">{inGroup.length}</span>
-                  <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === "group:" + g.id ? null : "group:" + g.id); }}>⋯</span>
+                  <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === "group:" + g.id ? null : "group:" + g.id); }}><I g="⋯" /></span>
                   {menu === "group:" + g.id && (
                     <div className="menu" onClick={(e) => e.stopPropagation()}>
                       <div className="swatch-row">{COLORS.map((c) => <button key={c} className="swatch" style={{ background: c }} onClick={() => { setMenu(null); run(() => api.saveTagGroup(g.id, g.name, c)); }} />)}</div>
@@ -324,13 +325,13 @@ export default function Sidebar(p: Props) {
           <button className="icon-btn" title={tr("Install plugin…")} onClick={async () => {
             const d = await openDialog({ directory: true, title: tr("Choose a plugin folder (with plugin.json)") });
             if (typeof d === "string") api.installPlugin(d).then(loadPlugins).catch(fail);
-          }}>＋</button>
+          }}><I g="＋" /></button>
         </div>
         <div className="section">
           {plugins.map((pl) => (
             <div key={pl.id} className="nav-row" title={pl.description} onClick={() => p.onOpenPlugin(pl)}>
-              <span className="icon">⧈</span><span className="label">{pl.name}</span>
-              <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === "plugin:" + pl.id ? null : "plugin:" + pl.id); }}>⋯</span>
+              <span className="icon"><I g="⧈" /></span><span className="label">{pl.name}</span>
+              <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === "plugin:" + pl.id ? null : "plugin:" + pl.id); }}><I g="⋯" /></span>
               {menu === "plugin:" + pl.id && (
                 <div className="menu" onClick={(e) => e.stopPropagation()}>
                   <p className="muted small pad">{pl.description || pl.name}<br />{tr("Permissions")}: {pl.permissions.join(", ") || "—"}</p>

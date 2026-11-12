@@ -1,3 +1,4 @@
+import { I } from "../icons";
 import { t as tr } from "../i18n";
 import { useEffect } from "react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
@@ -41,7 +42,7 @@ export default function WatchedFolders({ lib, onChange, onClose, fail }: Props) 
                 <option value="">{tr("No folder")}</option>
                 {flat.map(({ f, depth }) => <option key={f.id} value={f.id}>{"  ".repeat(depth)}{f.name}</option>)}
               </select>
-              <button className="icon-btn" title={tr("Stop watching")} onClick={() => run(() => api.removeWatchedFolder(w.id))}>×</button>
+              <button className="icon-btn" title={tr("Stop watching")} onClick={() => run(() => api.removeWatchedFolder(w.id))}><I g="×" /></button>
             </div>
           ))}
           {!list.length && <p className="muted small">{tr("No watched folders yet. Your Downloads or Screenshots folder is a good start.")}</p>}
