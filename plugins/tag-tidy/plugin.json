@@ -1,0 +1,9 @@
+{
+  "id": "tag-tidy",
+  "name": "Tag Tidy",
+  "version": "1.0.0",
+  "description": "Clean up tag spelling on the selected items: trim spaces, unify case, and merge near-duplicates.",
+  "author": "Hoard",
+  "main": "index.html",
+  "permissions": ["read", "write"]
+}

@@ -12,6 +12,7 @@ import Grid from "./components/Grid";
 import Inspector from "./components/Inspector";
 import Preview from "./components/Preview";
 import Duplicates from "./components/Duplicates";
+import PluginHost, { type PluginInfo } from "./components/PluginHost";
 
 const DEFAULT_QUERY: Query = {
   scope: "all", folderId: null, smartFolderId: null, tags: [], kinds: [], minRating: 0, color: null, text: "", sort: "created_desc",
@@ -36,6 +37,7 @@ export default function App() {
   const [dropping, setDropping] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [plugin, setPlugin] = useState<{ info: PluginInfo; html: string } | null>(null);
   useEffect(() => { if (!notice) return; const t = setTimeout(() => setNotice(null), 3500); return () => clearTimeout(t); }, [notice]);
   const seq = useRef(0);
 
@@ -193,6 +195,7 @@ export default function App() {
         onSwitchLibrary={(l) => { setLib(l); setQuery(DEFAULT_QUERY); }}
         onDropItems={(ids, folderId) => update(ids, { addFolders: [folderId] })}
         onEmptyTrash={emptyTrash} fail={fail}
+        onOpenPlugin={(info) => api.pluginHtml(info.id).then((html) => setPlugin({ info, html })).catch(fail)}
       />
       <main className="main">
         {query.scope === "duplicates" ? <Duplicates root={lib.root} onChanged={refresh} fail={fail} /> : <>
@@ -225,6 +228,10 @@ export default function App() {
         <Preview root={lib.root} items={items} id={previewId} onNavigate={(id) => { setPreviewId(id); setSelected(new Set([id])); setAnchor(id); }}
           onClose={() => setPreviewId(null)} fail={fail}
           onItemChanged={(it) => { setItems((list) => list.map((i) => (i.id === it.id ? it : i))); }} />
+      )}
+      {plugin && (
+        <PluginHost plugin={plugin.info} html={plugin.html} root={lib.root} selected={selectedItems}
+          onChanged={refresh} onNotice={setNotice} onClose={() => setPlugin(null)} />
       )}
       {notice && <div className="toast ok" onClick={() => setNotice(null)}><span>{notice}</span></div>}
       {error && (

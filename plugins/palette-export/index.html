@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+<head>
+<style>
+  body { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; height: 100vh; box-sizing: border-box; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .sw { display: flex; height: 36px; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+  .sw div { flex: 1; }
+  textarea { flex: 1; width: 100%; box-sizing: border-box; background: var(--bg); color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 10px; font: 12px/1.5 ui-monospace, Menlo, monospace; resize: none; }
+  select, button { font: inherit; color: inherit; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 4px 10px; }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+  <div class="row"><b>Palette Export</b><span class="muted" id="info"></span><span style="flex:1"></span>
+    <select id="fmt"><option value="css">CSS variables</option><option value="json">JSON</option><option value="list">Plain list</option></select></div>
+  <div class="sw" id="sw"></div>
+  <textarea id="out" readonly></textarea>
+  <span class="muted">Select the text and press ⌘C to copy.</span>
+<script>
+  let colours = [];
+  function slug(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "item"; }
+  function render() {
+    const fmt = document.getElementById("fmt").value;
+    let text = "";
+    if (fmt === "css") text = ":root {\n" + colours.map((c, i) => `  --${c.slug}-${c.n}: ${c.hex};`).join("\n") + "\n}";
+    else if (fmt === "json") text = JSON.stringify(colours.map((c) => ({ item: c.item, hex: c.hex, share: c.share })), null, 2);
+    else text = [...new Set(colours.map((c) => c.hex))].join("\n");
+    document.getElementById("out").value = text;
+    document.getElementById("sw").innerHTML = colours.map((c) => `<div title="${c.hex}" style="background:${c.hex}"></div>`).join("");
+  }
+  hoard.selection().then((items) => {
+    colours = items.flatMap((it) => it.palette.map((p, i) => ({ item: it.name, slug: slug(it.name), n: i + 1, hex: p.hex, share: Math.round(p.ratio * 100) })));
+    document.getElementById("info").textContent = items.length ? `${colours.length} colours from ${items.length} item(s)` : "Select some items first.";
+    render();
+  }).catch((e) => { document.getElementById("info").textContent = e.message; });
+  document.getElementById("fmt").onchange = render;
+</script>
+</body>
+</html>

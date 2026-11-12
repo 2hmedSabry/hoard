@@ -278,6 +278,14 @@ const ar: Record<string, string> = {
   "⌘A — select all": "⌘A — تحديد الكل",
   "⌘F — search": "⌘F — بحث",
   "Language": "اللغة",
+  "Plugins": "الإضافات البرمجية",
+  "Install plugin…": "تثبيت إضافة…",
+  "Choose a plugin folder (with plugin.json)": "اختر مجلد الإضافة (يحتوي على plugin.json)",
+  "Permissions": "الصلاحيات",
+  "Remove the plugin “{name}”?": "هل تريد إزالة الإضافة “{name}”؟",
+  "Remove plugin": "إزالة الإضافة",
+  "Plugins add tools to Hoard. Install one from a folder with ＋.": "الإضافات البرمجية تضيف أدوات إلى Hoard. ثبّت واحدة من مجلد عبر ＋.",
+  "Open plugins folder": "فتح مجلد الإضافات",
   "English": "English",
 };
 export default ar;

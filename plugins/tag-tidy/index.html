@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+<style>
+  body { padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; }
+  label { display: flex; gap: 8px; align-items: center; }
+  table { border-collapse: collapse; width: 100%; }
+  td { padding: 4px 8px; border-bottom: 1px solid var(--line); }
+  td.arrow { color: var(--muted); width: 20px; text-align: center; }
+  button { font: inherit; color: #fff; background: var(--accent); border: none; border-radius: 6px; padding: 6px 14px; align-self: flex-start; }
+  button:disabled { opacity: .5; }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+  <b>Tag Tidy</b>
+  <label><input type="checkbox" id="lower" checked> Make tags lower case</label>
+  <label><input type="checkbox" id="dash"> Replace spaces with dashes</label>
+  <div id="list" class="muted">Loading…</div>
+  <button id="apply" disabled>Apply</button>
+<script>
+  let items = [];
+  function tidy(t) {
+    let s = t.trim().replace(/\s+/g, " ");
+    if (document.getElementById("lower").checked) s = s.toLocaleLowerCase();
+    if (document.getElementById("dash").checked) s = s.replace(/ /g, "-");
+    return s;
+  }
+  function changes() {
+    const map = new Map();
+    for (const it of items) for (const t of it.tags) { const n = tidy(t); if (n && n !== t) map.set(t, n); }
+    return map;
+  }
+  function render() {
+    const m = changes();
+    document.getElementById("list").innerHTML = !items.length ? "Select some items first."
+      : !m.size ? "These tags are already tidy."
+      : "<table>" + [...m].map(([a, b]) => `<tr><td>${a.replace(/</g, "&lt;")}</td><td class="arrow">→</td><td><b>${b.replace(/</g, "&lt;")}</b></td></tr>`).join("") + "</table>";
+    document.getElementById("apply").disabled = !m.size;
+  }
+  document.getElementById("apply").onclick = async () => {
+    const m = changes();
+    let n = 0;
+    for (const it of items) {
+      const remove = it.tags.filter((t) => m.has(t));
+      if (!remove.length) continue;
+      await hoard.update([it.id], { removeTags: remove, addTags: remove.map((t) => m.get(t)) });
+      n++;
+    }
+    await hoard.notify(`Tidied tags on ${n} item(s).`);
+    items = await hoard.selection();
+    render();
+  };
+  document.getElementById("lower").onchange = render;
+  document.getElementById("dash").onchange = render;
+  hoard.selection().then((s) => { items = s; render(); }).catch((e) => { document.getElementById("list").textContent = e.message; });
+</script>
+</body>
+</html>

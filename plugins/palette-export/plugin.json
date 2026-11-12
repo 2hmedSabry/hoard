@@ -1,0 +1,9 @@
+{
+  "id": "palette-export",
+  "name": "Palette Export",
+  "version": "1.0.0",
+  "description": "Turn the colours of the selected items into CSS variables or JSON.",
+  "author": "Hoard",
+  "main": "index.html",
+  "permissions": ["read"]
+}

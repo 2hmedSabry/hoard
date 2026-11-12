@@ -1,4 +1,5 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
+import type { PluginInfo } from "./components/PluginHost";
 import type { Annotation, DupGroup, Folder, Item, ItemPatch, LibraryInfo, Query, Rule, SmartFolder, Stats } from "./types";
 
 export type ApiInfo = { port: number; token: string; running: boolean; error: string | null };
@@ -33,6 +34,11 @@ export const api = {
   importPack: (path: string) => invoke<[number, number]>("import_pack", { path }),
   setAnnotations: (id: string, annotations: Annotation[]) => invoke<Item>("set_annotations", { id, annotations }),
   similar: (id: string) => invoke<Item[]>("similar_items", { id }),
+  listPlugins: () => invoke<PluginInfo[]>("list_plugins"),
+  pluginHtml: (id: string) => invoke<string>("plugin_html", { id }),
+  installPlugin: (path: string) => invoke<PluginInfo>("install_plugin", { path }),
+  removePlugin: (id: string) => invoke<void>("remove_plugin", { id }),
+  revealPluginsFolder: () => invoke<void>("reveal_plugins_folder"),
   renameTag: (from: string, to: string) => invoke<void>("rename_tag", { from, to }),
   rebuildIndex: () => invoke<number>("rebuild_index"),
   reveal: (id: string) => invoke<void>("reveal_item", { id }),

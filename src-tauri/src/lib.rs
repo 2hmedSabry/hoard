@@ -6,6 +6,7 @@ mod library;
 mod model;
 mod pack;
 mod palette;
+mod plugins;
 mod rules;
 mod watch;
 
@@ -201,6 +202,33 @@ fn report_js_error(app: AppHandle, message: String) {
 }
 
 #[tauri::command]
+fn list_plugins(app: AppHandle) -> R<Vec<plugins::PluginInfo>> {
+    plugins::list(&app).map_err(err)
+}
+
+#[tauri::command]
+fn plugin_html(app: AppHandle, id: String) -> R<String> {
+    plugins::html(&app, &id).map_err(err)
+}
+
+#[tauri::command]
+fn install_plugin(app: AppHandle, path: String) -> R<plugins::PluginInfo> {
+    plugins::install(&app, &PathBuf::from(path)).map_err(err)
+}
+
+#[tauri::command]
+fn remove_plugin(app: AppHandle, id: String) -> R<()> {
+    plugins::remove(&app, &id).map_err(err)
+}
+
+#[tauri::command]
+fn reveal_plugins_folder(app: AppHandle) -> R<()> {
+    let d = plugins::dir(&app).map_err(err)?;
+    std::process::Command::new("/usr/bin/open").arg(d).spawn().map_err(err)?;
+    Ok(())
+}
+
+#[tauri::command]
 fn open_url(url: String) -> R<()> {
     if !(url.starts_with("http://") || url.starts_with("https://")) {
         return Err("Only web links can be opened".into());
@@ -382,6 +410,11 @@ pub fn run() {
             reveal_item,
             open_item,
             open_url,
+            list_plugins,
+            plugin_html,
+            install_plugin,
+            remove_plugin,
+            reveal_plugins_folder,
             report_js_error,
             api_info,
             regenerate_api_token,

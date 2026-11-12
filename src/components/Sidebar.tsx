@@ -5,6 +5,7 @@ import { api } from "../api";
 import { beginDrag, type DropDetail } from "../drag";
 import type { Folder, LibraryInfo, Query, Rule, Scope, SmartFolder, Stats } from "../types";
 import SmartFolderEditor from "./SmartFolderEditor";
+import type { PluginInfo } from "./PluginHost";
 import BrowserConnect from "./BrowserConnect";
 import WatchedFolders from "./WatchedFolders";
 import { getTheme, setTheme, type ThemePref } from "../theme";
@@ -15,6 +16,7 @@ type Props = {
   lib: LibraryInfo; stats: Stats | null; query: Query; setQuery: (f: (q: Query) => Query) => void;
   onLibChange: () => void; onSwitchLibrary: (l: LibraryInfo) => void;
   onDropItems: (ids: string[], folderId: string) => void; onEmptyTrash: () => void; fail: (e: unknown) => void;
+  onOpenPlugin: (p: PluginInfo) => void;
 };
 
 type Editing = { kind: "new"; parent: string | null } | { kind: "rename"; id: string } | { kind: "tag"; tag: string } | { kind: "library" } | null;
@@ -35,6 +37,9 @@ export default function Sidebar(p: Props) {
   const [menu, setMenu] = useState<string | null>(null);
   const [libMenu, setLibMenu] = useState(false);
   const [connect, setConnect] = useState(false);
+  const [plugins, setPlugins] = useState<PluginInfo[]>([]);
+  const loadPlugins = () => api.listPlugins().then(setPlugins).catch(fail);
+  useEffect(() => { loadPlugins(); }, []); // eslint-disable-line
   const [watching, setWatching] = useState(false);
   const [theme, setThemeState] = useState<ThemePref>(getTheme);
   const [langPref, setLangPref] = useState<LangPref>(getLangPref);
@@ -242,6 +247,34 @@ export default function Sidebar(p: Props) {
             </div>
           ))}
           {!stats?.tags.length && <p className="muted small pad">{tr("Tags you add to items show up here.")}</p>}
+        </div>
+
+        <div className="section-title">
+          <span>{tr("Plugins")}</span>
+          <button className="icon-btn" title={tr("Install plugin…")} onClick={async () => {
+            const d = await openDialog({ directory: true, title: tr("Choose a plugin folder (with plugin.json)") });
+            if (typeof d === "string") api.installPlugin(d).then(loadPlugins).catch(fail);
+          }}>＋</button>
+        </div>
+        <div className="section">
+          {plugins.map((pl) => (
+            <div key={pl.id} className="nav-row" title={pl.description} onClick={() => p.onOpenPlugin(pl)}>
+              <span className="icon">⧈</span><span className="label">{pl.name}</span>
+              <span className="more" onClick={(e) => { e.stopPropagation(); setMenu(menu === "plugin:" + pl.id ? null : "plugin:" + pl.id); }}>⋯</span>
+              {menu === "plugin:" + pl.id && (
+                <div className="menu" onClick={(e) => e.stopPropagation()}>
+                  <p className="muted small pad">{pl.description || pl.name}<br />{tr("Permissions")}: {pl.permissions.join(", ") || "—"}</p>
+                  <button className="danger" onClick={async () => {
+                    setMenu(null);
+                    const ok = await ask(tr("Remove the plugin “{name}”?", { name: pl.name }), { title: tr("Remove plugin"), kind: "warning", okLabel: tr("Remove"), cancelLabel: tr("Cancel") });
+                    if (ok) api.removePlugin(pl.id).then(loadPlugins).catch(fail);
+                  }}>{tr("Remove plugin")}</button>
+                </div>
+              )}
+            </div>
+          ))}
+          {!plugins.length && <p className="muted small pad">{tr("Plugins add tools to Hoard. Install one from a folder with ＋.")}</p>}
+          <button className="link small pad-btn" onClick={() => api.revealPluginsFolder().catch(fail)}>{tr("Open plugins folder")}</button>
         </div>
       </div>
       {!!stats?.aiPending && <div className="ai-status"><span className="spin" /> {tr("Analysing {n} items on this Mac…", { n: stats.aiPending })}</div>}
