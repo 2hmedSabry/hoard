@@ -302,3 +302,8 @@ body.dragging, body.dragging * { cursor: grabbing !important; }
 .dup-flag.out { background: var(--danger); }
 .check { display: flex; align-items: center; gap: 8px; color: var(--muted); }
 .check input { width: auto; }
+
+.token-row { display: flex; gap: 6px; }
+.token-row input { font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+.steps { margin: 4px 0; padding-left: 20px; line-height: 1.8; }
+.ok-line { color: #46a758; font-weight: 600; }

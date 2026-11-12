@@ -4,6 +4,7 @@ import { api } from "../api";
 import { beginDrag, type DropDetail } from "../drag";
 import type { Folder, LibraryInfo, Query, Rule, Scope, SmartFolder, Stats } from "../types";
 import SmartFolderEditor from "./SmartFolderEditor";
+import BrowserConnect from "./BrowserConnect";
 import InlineEdit from "./InlineEdit";
 
 type Props = {
@@ -29,6 +30,7 @@ export default function Sidebar(p: Props) {
   const [editing, setEditing] = useState<Editing>(null);
   const [menu, setMenu] = useState<string | null>(null);
   const [libMenu, setLibMenu] = useState(false);
+  const [connect, setConnect] = useState(false);
   const [smartEdit, setSmartEdit] = useState<SmartFolder | "new" | null>(null);
   const { open, toggle } = useExpanded();
 
@@ -131,6 +133,7 @@ export default function Sidebar(p: Props) {
             <button onClick={() => { setLibMenu(false); switchLibrary(); }}>Open library…</button>
             <button onClick={() => { setLibMenu(false); setEditing({ kind: "library" }); }}>New library…</button>
             <button onClick={() => { setLibMenu(false); run(async () => { await api.rebuildIndex(); }); }}>Rebuild search index</button>
+            <button onClick={() => { setLibMenu(false); setConnect(true); }}>Browser extension…</button>
           </div>
         )}
       </div>
@@ -212,6 +215,7 @@ export default function Sidebar(p: Props) {
           {!stats?.tags.length && <p className="muted small pad">Tags you add to items show up here.</p>}
         </div>
       </div>
+      {connect && <BrowserConnect onClose={() => setConnect(false)} fail={fail} />}
       {smartEdit && (
         <SmartFolderEditor
           initial={smartEdit === "new" ? null : smartEdit} folders={lib.meta.folders}

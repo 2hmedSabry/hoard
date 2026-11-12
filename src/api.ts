@@ -1,6 +1,8 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import type { DupGroup, Folder, Item, ItemPatch, LibraryInfo, Query, Rule, SmartFolder, Stats } from "./types";
 
+export type ApiInfo = { port: number; token: string; running: boolean; error: string | null };
+
 export const api = {
   openLastLibrary: () => invoke<LibraryInfo | null>("open_last_library"),
   createLibrary: (parent: string, name: string) => invoke<LibraryInfo>("create_library", { parent, name }),
@@ -19,6 +21,8 @@ export const api = {
   updateSmartFolder: (id: string, name: string, matchMode: string, rules: Rule[]) => invoke<void>("update_smart_folder", { id, name, matchMode, rules }),
   deleteSmartFolder: (id: string) => invoke<void>("delete_smart_folder", { id }),
   findDuplicates: (maxDistance: number) => invoke<DupGroup[]>("find_duplicates", { maxDistance }),
+  apiInfo: () => invoke<ApiInfo>("api_info"),
+  regenerateApiToken: () => invoke<string>("regenerate_api_token"),
   renameTag: (from: string, to: string) => invoke<void>("rename_tag", { from, to }),
   rebuildIndex: () => invoke<number>("rebuild_index"),
   reveal: (id: string) => invoke<void>("reveal_item", { id }),
