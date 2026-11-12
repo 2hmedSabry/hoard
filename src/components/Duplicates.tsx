@@ -8,7 +8,11 @@ type Props = { root: string; onChanged: () => void; fail: (e: unknown) => void }
 const LEVELS: [number, string][] = [[0, "Identical files only"], [4, "Near-identical pictures"], [8, "Similar pictures"], [12, "Loosely similar"]];
 
 function readLevel() {
-  try { const v = Number(localStorage.getItem("dupLevel")); return LEVELS.some(([l]) => l === v) ? v : 4; } catch { return 4; }
+  try {
+    const raw = localStorage.getItem("dupLevel");
+    const v = raw === null ? NaN : Number(raw);
+    return LEVELS.some(([l]) => l === v) ? v : 4;
+  } catch { return 4; }
 }
 
 export default function Duplicates({ root, onChanged, fail }: Props) {

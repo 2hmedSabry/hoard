@@ -533,7 +533,9 @@ impl Library {
                 .collect();
             for a in 0..visual.len() {
                 for b in a + 1..visual.len() {
-                    if (visual[a].1 ^ visual[b].1).count_ones() <= max_distance {
+                    // Only compare like with like: a video's poster frame
+                    // shouldn't make it a "copy" of a still image.
+                    if items[visual[a].0].kind == items[visual[b].0].kind && (visual[a].1 ^ visual[b].1).count_ones() <= max_distance {
                         union(&mut parent, visual[a].0, visual[b].0);
                     }
                 }

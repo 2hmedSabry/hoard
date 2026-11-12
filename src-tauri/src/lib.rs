@@ -348,7 +348,9 @@ mod tests {
         let groups = lib.duplicates(8).unwrap();
         assert!(groups.iter().any(|g| g.reason == "similar" && g.items.iter().any(|i| i.name == "pattern") && g.items.iter().any(|i| i.name == "pattern-small")),
             "resized copy found: {:?}", groups.iter().map(|g| g.items.iter().map(|i| i.name.clone()).collect::<Vec<_>>()).collect::<Vec<_>>());
-        assert_eq!(groups.iter().find(|g| g.items.iter().any(|i| i.name == "pattern")).unwrap().items[0].name, "pattern", "bigger copy listed first");
+        let pg = groups.iter().find(|g| g.items.iter().any(|i| i.name == "pattern")).unwrap();
+        assert_eq!(pg.items[0].name, "pattern", "bigger copy listed first");
+        assert!(!pg.items.iter().any(|i| i.kind == "video"), "videos aren't grouped with images");
         assert!(lib.duplicates(0).unwrap().is_empty(), "no exact copies in the library");
 
         // Smart folders.
