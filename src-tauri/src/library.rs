@@ -389,7 +389,11 @@ impl Library {
             uncategorized: count("SELECT COUNT(*) FROM items WHERE deleted=0 AND id NOT IN (SELECT item_id FROM item_folders)")?,
             untagged: count("SELECT COUNT(*) FROM items WHERE deleted=0 AND id NOT IN (SELECT item_id FROM item_tags)")?,
             trash: count("SELECT COUNT(*) FROM items WHERE deleted=1")?,
-            ai_pending: count("SELECT COUNT(*) FROM items WHERE deleted=0 AND kind IN ('image','video','document') AND coalesce(json_extract(json,'$.analyzed'),0)=0")?,
+            ai_pending: if crate::ai::available() {
+                count("SELECT COUNT(*) FROM items WHERE deleted=0 AND kind IN ('image','video','document') AND coalesce(json_extract(json,'$.analyzed'),0)=0")?
+            } else {
+                0
+            },
             ..Default::default()
         };
         let mut st = self.db.prepare(

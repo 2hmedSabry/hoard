@@ -11,16 +11,44 @@
   },
   "app": {
     "windows": [
-      { "label": "main", "title": "Hoard", "width": 1360, "height": 860, "minWidth": 900, "minHeight": 560 }
+      {
+        "label": "main",
+        "title": "Hoard",
+        "width": 1360,
+        "height": 860,
+        "minWidth": 900,
+        "minHeight": 560
+      }
     ],
     "security": {
       "csp": null,
-      "assetProtocol": { "enable": true, "scope": ["**"] }
+      "assetProtocol": {
+        "enable": true,
+        "scope": [
+          "**"
+        ]
+      }
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["app"],
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.png"]
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.png"
+    ],
+    "category": "Graphics and Design",
+    "shortDescription": "Collect and organise visual references"
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEFDQkMxNkU4MUUyRTJCQjkKUldTNUt5NGU2QmE4cktjeDNlSUhNVEJYNXA0Q1p5aHhwWUpSZFI2U20xT003c1NQV1FSWFZSZ2IK",
+      "endpoints": [
+        "https://github.com/2hmedSabry/hoard/releases/latest/download/latest.json"
+      ]
+    }
   }
 }

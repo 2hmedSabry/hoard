@@ -200,15 +200,9 @@ fn decode_oriented(file: &Path) -> Option<DynamicImage> {
     Some(img)
 }
 
-/// Finds a command-line tool even when the app is started from Finder (no shell PATH).
+/// Finds a command-line tool such as ffmpeg.
 pub fn tool(name: &str) -> Option<PathBuf> {
-    for dir in ["/opt/homebrew/bin", "/usr/local/bin", "/usr/bin"] {
-        let p = Path::new(dir).join(name);
-        if p.exists() {
-            return Some(p);
-        }
-    }
-    None
+    crate::platform::find_tool(name)
 }
 
 /// Reads width/height (or the viewBox) from the root <svg> tag.
@@ -230,6 +224,12 @@ fn svg_size(file: &Path) -> Option<(u32, u32)> {
     (vb.len() == 4).then(|| (vb[2].round() as u32, vb[3].round() as u32))
 }
 
+#[cfg(not(target_os = "macos"))]
+fn sips_size(_file: &Path) -> Option<(u32, u32)> {
+    None
+}
+
+#[cfg(target_os = "macos")]
 fn sips_size(file: &Path) -> Option<(u32, u32)> {
     let out = Command::new("/usr/bin/sips").args(["-g", "pixelWidth", "-g", "pixelHeight"]).arg(file).output().ok()?;
     let text = String::from_utf8_lossy(&out.stdout);
@@ -241,7 +241,7 @@ fn sips_size(file: &Path) -> Option<(u32, u32)> {
 
 fn probe(file: &Path, item: &mut Item) {
     let Some(ffprobe) = tool("ffprobe") else { return };
-    let Ok(out) = Command::new(ffprobe)
+    let Ok(out) = crate::platform::command(ffprobe)
         .args(["-v", "error", "-show_entries", "stream=codec_type,width,height:format=duration", "-of", "json"])
         .arg(file)
         .output()
@@ -262,7 +262,7 @@ fn video_frame(file: &Path, dir: &Path, duration: f64) -> Option<DynamicImage> {
     let ffmpeg = tool("ffmpeg")?;
     let tmp = dir.join(".frame.jpg");
     let at = if duration > 3.0 { duration * 0.1 } else { 0.0 };
-    let ok = Command::new(ffmpeg)
+    let ok = crate::platform::command(ffmpeg)
         .args(["-v", "error", "-y", "-ss", &format!("{at:.2}"), "-i"])
         .arg(file)
         .args(["-frames:v", "1", "-vf", "scale=960:-2"])
@@ -277,7 +277,14 @@ fn video_frame(file: &Path, dir: &Path, duration: f64) -> Option<DynamicImage> {
     img
 }
 
+/// Other systems have no Quick Look; those files get a type badge instead.
+#[cfg(not(target_os = "macos"))]
+fn quicklook(_file: &Path, _dir: &Path) -> Option<DynamicImage> {
+    None
+}
+
 /// macOS Quick Look renders PDFs, PSD, HEIC, SVG, Office files, fonts and more.
+#[cfg(target_os = "macos")]
 fn quicklook(file: &Path, dir: &Path) -> Option<DynamicImage> {
     let tmp = dir.join(".ql");
     fs::create_dir_all(&tmp).ok()?;

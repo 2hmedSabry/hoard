@@ -10,7 +10,6 @@ use base64::Engine;
 use serde::Deserialize;
 use std::fs;
 use std::path::PathBuf;
-use std::process::Command;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 
@@ -72,13 +71,19 @@ fn source(lib: &Library, it: &Item) -> Option<PathBuf> {
     it.thumb.as_ref().map(|t| dir.join(t))
 }
 
+/// Whether on-device analysis can run on this system.
+pub fn available() -> bool {
+    !HELPER.is_empty()
+}
+
 pub fn label_text(id: &str) -> String {
     id.replace('_', " ")
 }
 
 pub fn start(app: AppHandle) {
     std::thread::spawn(move || loop {
-        let mut worked = run_batch(&app).unwrap_or(false);
+        // Vision analysis is macOS-only; elsewhere just do the camera/tempo backfill.
+        let mut worked = !HELPER.is_empty() && run_batch(&app).unwrap_or(false);
         if !worked {
             // Quiet moment: fill in camera details for items imported before they existed.
             let st = app.state::<AppState>();
@@ -115,7 +120,7 @@ fn run_batch(app: &AppHandle) -> Result<bool> {
     let mut outputs = std::collections::HashMap::new();
     if !paths.is_empty() {
         let helper = helper_path(app)?;
-        let out = Command::new(helper).args(&paths).output()?;
+        let out = crate::platform::command(helper).args(&paths).output()?;
         for line in String::from_utf8_lossy(&out.stdout).lines() {
             if let Ok(o) = serde_json::from_str::<Output>(line) {
                 outputs.insert(PathBuf::from(&o.path), o);

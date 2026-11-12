@@ -246,7 +246,7 @@ export default function Inspector(p: Props) {
       <div className="actions">
         {one.analyzed && ["image", "video", "document"].includes(one.kind) && <button onClick={() => p.onSimilar(one.id)}>{tr("Find similar")}</button>}
         <button onClick={() => api.open(one.id).catch(p.fail)}>{tr("Open")}</button>
-        <button onClick={() => api.reveal(one.id).catch(p.fail)}>{tr("Show in Finder")}</button>
+        <button onClick={() => api.reveal(one.id).catch(p.fail)}>{/Mac/.test(navigator.platform) ? tr("Show in Finder") : tr("Show in folder")}</button>
         {inTrash
           ? <button onClick={() => p.onTrash([one.id], false)}>{tr("Restore")}</button>
           : <button className="danger" onClick={() => p.onTrash([one.id], true)}>{tr("Move to Trash")}</button>}

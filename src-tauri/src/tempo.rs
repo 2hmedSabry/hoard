@@ -1,14 +1,14 @@
 //! Tempo (BPM) estimate for audio: decode with ffmpeg, build an onset-strength
 //! curve from frame energy, and pick the strongest beat period by autocorrelation.
 use std::path::Path;
-use std::process::{Command, Stdio};
+use std::process::Stdio;
 
 const RATE: f32 = 11_025.0;
 const HOP: usize = 128;
 
 pub fn detect(file: &Path) -> Option<f32> {
     let ffmpeg = crate::import::tool("ffmpeg")?;
-    let out = Command::new(ffmpeg)
+    let out = crate::platform::command(ffmpeg)
         .args(["-v", "error", "-t", "120", "-i"])
         .arg(file)
         .args(["-ac", "1", "-ar", "11025", "-f", "f32le", "-"])

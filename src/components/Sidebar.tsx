@@ -9,6 +9,7 @@ import type { PluginInfo } from "./PluginHost";
 import BrowserConnect from "./BrowserConnect";
 import PasswordPrompt from "./PasswordPrompt";
 import ShortcutsDialog from "./ShortcutsDialog";
+import { checkForUpdates } from "../updates";
 import WatchedFolders from "./WatchedFolders";
 import { getTheme, setTheme, type ThemePref } from "../theme";
 import { getLangPref, LANGS, setLang, type LangPref } from "../i18n";
@@ -206,6 +207,7 @@ export default function Sidebar(p: Props) {
             <button onClick={() => { setLibMenu(false); setWatching(true); }}>{tr("Watched folders…")}</button>
             <button onClick={() => { setLibMenu(false); setConnect(true); }}>{tr("Browser extension…")}</button>
             <button onClick={() => { setLibMenu(false); setKeys(true); }}>{tr("Keyboard shortcuts…")}</button>
+            <button onClick={() => { setLibMenu(false); checkForUpdates(fail); }}>{tr("Check for updates…")}</button>
             <div className="menu-label">{tr("Language")}</div>
             <div className="theme-switch">
               {LANGS.map(([l, label]) => (

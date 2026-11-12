@@ -29,7 +29,8 @@ Built with [Tauri 2](https://tauri.app), Rust and React.
 
 ## Requirements
 
-- macOS 12 or later (Windows and Linux builds are planned)
+- macOS 12 or later, Windows 10 or later, or Linux (WebKitGTK 4.1)
+- On Windows and Linux, PDFs, PSD, Office files and fonts show a type badge instead of a rendered thumbnail, and on-device AI (Apple Vision) isn't available
 - Optional: `ffmpeg` / `ffprobe` for video thumbnails and durations (`brew install ffmpeg`)
 - Building needs Xcode command line tools (`swiftc`) for the on-device analysis helper; without them Hoard builds without AI features
 
@@ -73,6 +74,12 @@ My Library.hoard/
     thumb.jpg | thumb.png
     item.json           # tags, folders, rating, note, link, palette, sizes
 ```
+
+## Releases and updates
+
+Every push to `main` is built and tested on macOS, Windows and Linux by GitHub Actions. Pushing a tag such as `v0.2.0` builds installers for all three, signs the update files, and creates a draft GitHub release with `latest.json`. Hoard checks that file from **Check for updates…** in the library menu and only installs updates signed with the project's key.
+
+Maintainers: add the updater private key as the repository secret `TAURI_SIGNING_PRIVATE_KEY` before tagging. macOS notarization and Windows code signing need your own Apple Developer and code-signing certificates.
 
 ## Contributing
 

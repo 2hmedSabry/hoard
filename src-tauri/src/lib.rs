@@ -7,6 +7,7 @@ mod library;
 mod model;
 mod pack;
 mod palette;
+mod platform;
 mod plugins;
 mod rules;
 mod tempo;
@@ -170,14 +171,14 @@ fn rebuild_index(st: State<AppState>) -> R<usize> {
 #[tauri::command]
 fn reveal_item(st: State<AppState>, id: String) -> R<()> {
     let p = with_lib(&st, |l| l.file_path(&id))?;
-    std::process::Command::new("/usr/bin/open").arg("-R").arg(p).spawn().map_err(err)?;
+    platform::reveal_path(&p).map_err(err)?;
     Ok(())
 }
 
 #[tauri::command]
 fn open_item(st: State<AppState>, id: String) -> R<()> {
     let p = with_lib(&st, |l| l.file_path(&id))?;
-    std::process::Command::new("/usr/bin/open").arg(p).spawn().map_err(err)?;
+    platform::open_path(&p).map_err(err)?;
     Ok(())
 }
 
@@ -226,7 +227,7 @@ fn remove_plugin(app: AppHandle, id: String) -> R<()> {
 #[tauri::command]
 fn reveal_plugins_folder(app: AppHandle) -> R<()> {
     let d = plugins::dir(&app).map_err(err)?;
-    std::process::Command::new("/usr/bin/open").arg(d).spawn().map_err(err)?;
+    platform::open_path(&d).map_err(err)?;
     Ok(())
 }
 
@@ -235,7 +236,7 @@ fn open_url(url: String) -> R<()> {
     if !(url.starts_with("http://") || url.starts_with("https://")) {
         return Err("Only web links can be opened".into());
     }
-    std::process::Command::new("/usr/bin/open").arg(url).spawn().map_err(err)?;
+    platform::open_url(&url).map_err(err)?;
     Ok(())
 }
 
@@ -436,6 +437,8 @@ fn remove_watched_folder(st: State<AppState>, id: String) -> R<()> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .manage(AppState::default())
         .manage(api_server::ApiState::default())
         .setup(|app| {
