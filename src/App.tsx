@@ -13,6 +13,7 @@ import Inspector from "./components/Inspector";
 import Preview from "./components/Preview";
 import Duplicates from "./components/Duplicates";
 import QuickSwitch from "./components/QuickSwitch";
+import { is as isKey } from "./shortcuts";
 import PluginHost, { type PluginInfo } from "./components/PluginHost";
 
 const DEFAULT_QUERY: Query = {
@@ -168,24 +169,26 @@ export default function App() {
   // Keyboard shortcuts for the grid.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setSwitching(true); return; }
+      if (document.querySelector(".modal-back")) return; // dialogs handle their own keys
+      if (isKey(e, "quickSwitch")) { e.preventDefault(); setSwitching(true); return; }
+      if (isKey(e, "import")) { e.preventDefault(); pickImport(false); return; }
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, select, [contenteditable]")) return;
       if (previewId || query.scope === "duplicates") return; // Preview and Duplicates handle their own keys.
-      if (e.key === " " && selected.size) { e.preventDefault(); setPreviewId([...selected][0]); }
-      else if ((e.key === "Backspace" || e.key === "Delete") && selected.size && query.scope !== "trash") { e.preventDefault(); trash([...selected], true); }
-      else if (e.key === "a" && (e.metaKey || e.ctrlKey)) { e.preventDefault(); setSelected(new Set(items.map((i) => i.id))); }
-      else if (e.key === "Escape") setSelected(new Set());
-      else if (["ArrowLeft", "ArrowRight"].includes(e.key) && items.length) {
+      if (isKey(e, "preview") && selected.size) { e.preventDefault(); setPreviewId([...selected][0]); }
+      else if (isKey(e, "trash") && selected.size && query.scope !== "trash") { e.preventDefault(); trash([...selected], true); }
+      else if (isKey(e, "selectAll")) { e.preventDefault(); setSelected(new Set(items.map((i) => i.id))); }
+      else if (isKey(e, "clear")) setSelected(new Set());
+      else if ((isKey(e, "next") || isKey(e, "prev")) && items.length) {
         e.preventDefault();
         const cur = items.findIndex((i) => i.id === anchor);
-        const next = Math.max(0, Math.min(items.length - 1, cur + (e.key === "ArrowRight" ? 1 : -1)));
+        const next = Math.max(0, Math.min(items.length - 1, cur + (isKey(e, "next") ? 1 : -1)));
         setSelected(new Set([items[next].id])); setAnchor(items[next].id);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [items, selected, anchor, previewId, query.scope, trash]);
+  }, [items, selected, anchor, previewId, query.scope, trash, pickImport]);
 
   if (booting) return <div className="boot" />;
   if (!lib) return <Welcome onOpen={(l) => { setLib(l); setQuery(DEFAULT_QUERY); }} error={error} setError={setError} />;

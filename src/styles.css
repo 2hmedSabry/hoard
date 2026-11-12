@@ -448,3 +448,9 @@ input, textarea, select { padding: 4px 8px; border-radius: 6px; }
 .crop-actions { flex-direction: row; width: auto; white-space: nowrap; }
 
 .modal.narrow { width: min(420px, calc(100vw - 32px)); }
+
+.shortcut-list { display: flex; flex-direction: column; }
+.shortcut-row { display: flex; align-items: center; gap: 8px; padding: 6px 2px; border-bottom: 1px solid var(--line); }
+.shortcut-row > span:first-child { flex: 1; }
+.kbd { font: 12px ui-monospace, Menlo, monospace; min-width: 90px; text-align: center; }
+.kbd.rec { border-color: var(--accent); color: var(--accent); }

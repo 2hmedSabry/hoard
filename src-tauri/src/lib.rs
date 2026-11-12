@@ -659,6 +659,14 @@ mod tests {
         assert!(lib.remove_lock(&vault.id, "open sesame").unwrap());
         assert_eq!(lib.stats().unwrap().all, before);
 
+        // Chinese/Japanese/Korean text matches inside words.
+        let cjk = q(&lib, |q| q.text = Some("Blue Ocean".into()))[0].id.clone();
+        lib.update_items(&[cjk.clone()], &ItemPatch { note: Some("海边的日落照片".into()), add_tags: vec!["風景写真".into()], ..Default::default() }).unwrap();
+        assert_eq!(q(&lib, |q| q.text = Some("日落".into()))[0].id, cjk, "Chinese inside a sentence");
+        assert_eq!(q(&lib, |q| q.text = Some("写真".into()))[0].id, cjk, "Japanese inside a tag");
+        assert_eq!(q(&lib, |q| q.text = Some("日落 blue".into()))[0].id, cjk, "mixed with Latin words");
+        assert!(q(&lib, |q| q.text = Some("山".into())).is_empty());
+
         // Index is disposable: delete it and reopen.
         let root = lib.root.clone();
         drop(lib);

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { api, fileUrl, thumbUrl } from "../api";
 import type { Item } from "../types";
 import Annotator from "./Annotator";
+import { is as isKey } from "../shortcuts";
 import { AudioViewer, FontViewer, TextViewer } from "./Viewers";
 
 type Props = { root: string; items: Item[]; id: string; onNavigate: (id: string) => void; onClose: () => void; onItemChanged: (it: Item) => void; fail: (e: unknown) => void };
@@ -28,10 +29,10 @@ export default function Preview({ root, items, id, onNavigate, onClose, onItemCh
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement).closest("textarea, input")) return;
-      if (e.key === "Escape" || e.key === " ") { e.preventDefault(); if (playing && e.key === " ") setPlaying(false); else onClose(); }
-      else if (e.key === "p") setPlaying((v) => !v);
-      else if (e.key === "ArrowRight" && idx < items.length - 1) onNavigate(items[idx + 1].id);
-      else if (e.key === "ArrowLeft" && idx > 0) onNavigate(items[idx - 1].id);
+      if (e.key === "Escape" || isKey(e, "preview")) { e.preventDefault(); if (playing && isKey(e, "preview")) setPlaying(false); else onClose(); }
+      else if (isKey(e, "slideshow")) setPlaying((v) => !v);
+      else if (isKey(e, "next") && idx < items.length - 1) onNavigate(items[idx + 1].id);
+      else if (isKey(e, "prev") && idx > 0) onNavigate(items[idx - 1].id);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

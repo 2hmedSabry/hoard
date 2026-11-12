@@ -1,6 +1,7 @@
 import { t as tr, count as countWord } from "../i18n";
 import { useEffect, useRef, useState } from "react";
 import { flattenFolders } from "../api";
+import { is as isKey } from "../shortcuts";
 import type { Folder, Kind, Query, SmartFolder, Sort } from "../types";
 
 type Props = {
@@ -23,7 +24,7 @@ export default function Toolbar({ query, setQuery, thumbSize, setThumbSize, onIm
   useEffect(() => {
     const close = () => { setColorOpen(false); setImportOpen(false); };
     const key = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "f") { e.preventDefault(); search.current?.focus(); search.current?.select(); }
+      if (isKey(e, "search")) { e.preventDefault(); search.current?.focus(); search.current?.select(); }
     };
     window.addEventListener("click", close);
     window.addEventListener("keydown", key);

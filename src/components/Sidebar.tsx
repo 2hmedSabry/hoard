@@ -8,6 +8,7 @@ import SmartFolderEditor from "./SmartFolderEditor";
 import type { PluginInfo } from "./PluginHost";
 import BrowserConnect from "./BrowserConnect";
 import PasswordPrompt from "./PasswordPrompt";
+import ShortcutsDialog from "./ShortcutsDialog";
 import WatchedFolders from "./WatchedFolders";
 import { getTheme, setTheme, type ThemePref } from "../theme";
 import { getLangPref, LANGS, setLang, type LangPref } from "../i18n";
@@ -38,6 +39,7 @@ export default function Sidebar(p: Props) {
   const [menu, setMenu] = useState<string | null>(null);
   const [libMenu, setLibMenu] = useState(false);
   const [connect, setConnect] = useState(false);
+  const [keys, setKeys] = useState(false);
   const [unlocked, setUnlocked] = useState<Set<string>>(new Set());
   const [pwPrompt, setPwPrompt] = useState<{ mode: "set" | "unlock" | "remove"; folder: Folder } | null>(null);
   const loadUnlocked = () => api.unlockedFolders().then((ids) => setUnlocked(new Set(ids))).catch(fail);
@@ -203,6 +205,7 @@ export default function Sidebar(p: Props) {
             }}>{tr("Import pack…")}</button>
             <button onClick={() => { setLibMenu(false); setWatching(true); }}>{tr("Watched folders…")}</button>
             <button onClick={() => { setLibMenu(false); setConnect(true); }}>{tr("Browser extension…")}</button>
+            <button onClick={() => { setLibMenu(false); setKeys(true); }}>{tr("Keyboard shortcuts…")}</button>
             <div className="menu-label">{tr("Language")}</div>
             <div className="theme-switch">
               {LANGS.map(([l, label]) => (
@@ -355,6 +358,7 @@ export default function Sidebar(p: Props) {
             p.onLibChange();
           }} />
       )}
+      {keys && <ShortcutsDialog onClose={() => setKeys(false)} />}
       {connect && <BrowserConnect onClose={() => setConnect(false)} fail={fail} />}
       {smartEdit && (
         <SmartFolderEditor

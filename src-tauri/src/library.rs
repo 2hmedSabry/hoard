@@ -97,6 +97,10 @@ fn remove_index_rows(c: &Connection, id: &str, with_item: bool) -> Result<()> {
     Ok(())
 }
 
+fn has_cjk(s: &str) -> bool {
+    s.chars().any(|c| matches!(c as u32, 0x3040..=0x30FF | 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xAC00..=0xD7AF | 0xF900..=0xFAFF))
+}
+
 /// Each word becomes a prefix match, so "sun bea" finds "Sunset beach".
 fn fts_query(text: &str) -> String {
     text.split_whitespace()
@@ -321,9 +325,24 @@ impl Library {
             sql.push_str(" AND rating>=?");
             args.push(Box::new(q.min_rating as i64));
         }
-        if let Some(m) = q.text.as_deref().map(fts_query).filter(|m| !m.is_empty()) {
-            sql.push_str(" AND id IN (SELECT id FROM items_fts WHERE items_fts MATCH ?)");
-            args.push(Box::new(m));
+        if let Some(text) = q.text.as_deref().filter(|t| !t.trim().is_empty()) {
+            for w in text.split_whitespace() {
+                if has_cjk(w) {
+                    // The word tokenizer can't split Chinese, Japanese or Korean, so
+                    // these words match anywhere inside the text instead.
+                    sql.push_str(" AND id IN (SELECT id FROM items_fts WHERE name LIKE ?1x OR note LIKE ?1x OR tags LIKE ?1x OR url LIKE ?1x)".replace("?1x", "?").as_str());
+                    let like = format!("%{}%", w.replace('%', "").replace('_', ""));
+                    for _ in 0..4 {
+                        args.push(Box::new(like.clone()));
+                    }
+                } else {
+                    let m = fts_query(w);
+                    if !m.is_empty() {
+                        sql.push_str(" AND id IN (SELECT id FROM items_fts WHERE items_fts MATCH ?)");
+                        args.push(Box::new(m));
+                    }
+                }
+            }
         }
         sql.push_str(match q.sort.as_str() {
             "created_asc" => " ORDER BY created_at ASC",
