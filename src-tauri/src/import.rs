@@ -107,6 +107,7 @@ pub fn import_file(items_dir: &Path, src: &Path, folder: Option<&str>, seen: &Mu
             deleted: false,
             thumb: None,
             duration: None,
+            annotations: vec![],
             fhash: Some(fhash.clone()),
             dhash: None,
         };

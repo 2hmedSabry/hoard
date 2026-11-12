@@ -54,7 +54,15 @@ fn upsert(c: &Connection, it: &Item) -> Result<()> {
     }
     c.execute(
         "INSERT INTO items_fts(id,name,note,tags,url,ext) VALUES(?1,?2,?3,?4,?5,?6)",
-        params![it.id, it.name, it.note, it.tags.join(" "), it.url, it.ext],
+        params![
+            it.id,
+            it.name,
+            // Area comments are searchable along with the note.
+            std::iter::once(it.note.as_str()).chain(it.annotations.iter().map(|a| a.text.as_str())).collect::<Vec<_>>().join(" "),
+            it.tags.join(" "),
+            it.url,
+            it.ext
+        ],
     )?;
     Ok(())
 }
@@ -590,6 +598,32 @@ impl Library {
     pub fn remove_watched(&mut self, id: &str) -> Result<()> {
         self.meta.watched.retain(|w| w.id != id);
         self.save_meta()
+    }
+
+    pub fn set_annotations(&mut self, id: &str, list: Vec<Annotation>) -> Result<Item> {
+        let mut it = self.get(id)?;
+        it.annotations = list
+            .into_iter()
+            .filter(|a| !a.text.trim().is_empty())
+            .map(|mut a| {
+                let c = |v: f32| v.clamp(0.0, 1.0);
+                a.x = c(a.x);
+                a.y = c(a.y);
+                a.w = c(a.w).min(1.0 - a.x);
+                a.h = c(a.h).min(1.0 - a.y);
+                a.text = a.text.trim().chars().take(2000).collect();
+                if a.id.is_empty() {
+                    a.id = new_id();
+                }
+                if a.created_at == 0 {
+                    a.created_at = now_ms();
+                }
+                a
+            })
+            .collect();
+        it.modified_at = now_ms();
+        self.save_items(std::slice::from_ref(&it))?;
+        Ok(it)
     }
 
     pub fn rename_many(&mut self, names: &[(String, String)]) -> Result<()> {

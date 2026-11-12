@@ -34,6 +34,11 @@ pub fn eval(rule: &Rule, it: &Item, meta: &LibraryMeta, now: i64) -> bool {
     match rule.field.as_str() {
         "name" => text_op(&it.name, &rule.op, v),
         "note" => text_op(&it.note, &rule.op, v),
+        "annotation" => match rule.op.as_str() {
+            "empty" => it.annotations.is_empty(),
+            "not_empty" => !it.annotations.is_empty(),
+            op => it.annotations.iter().any(|a| text_op(&a.text, op, v)),
+        },
         "url" => text_op(&it.url, &rule.op, v),
         "ext" => text_op(&it.ext, &rule.op, v.trim_start_matches('.')),
         "kind" => match rule.op.as_str() {

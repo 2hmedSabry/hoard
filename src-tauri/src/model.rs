@@ -43,12 +43,30 @@ pub struct Item {
     pub thumb: Option<String>,
     #[serde(default)]
     pub duration: Option<f64>,
+    /// Comments pinned to areas of the picture.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub annotations: Vec<Annotation>,
     /// Exact-copy fingerprint (see hashing::file_hash).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fhash: Option<String>,
     /// Picture fingerprint for near-duplicates (see hashing::dhash).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dhash: Option<String>,
+}
+
+/// A comment on a rectangle of an image. Coordinates are fractions (0–1) of
+/// the image's width and height, so they survive resizing.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct Annotation {
+    pub id: String,
+    pub x: f32,
+    pub y: f32,
+    pub w: f32,
+    pub h: f32,
+    pub text: String,
+    #[serde(default)]
+    pub created_at: i64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

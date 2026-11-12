@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
 import { api, fileUrl, thumbUrl } from "../api";
 import type { Item } from "../types";
+import Annotator from "./Annotator";
 
-type Props = { root: string; items: Item[]; id: string; onNavigate: (id: string) => void; onClose: () => void };
+type Props = { root: string; items: Item[]; id: string; onNavigate: (id: string) => void; onClose: () => void; onItemChanged: (it: Item) => void; fail: (e: unknown) => void };
 
-export default function Preview({ root, items, id, onNavigate, onClose }: Props) {
+export default function Preview({ root, items, id, onNavigate, onClose, onItemChanged, fail }: Props) {
   const idx = items.findIndex((i) => i.id === id);
   const item = items[idx];
   const [actual, setActual] = useState(false);
+  const [annotating, setAnnotating] = useState(false);
 
   useEffect(() => { setActual(false); }, [id]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if ((e.target as HTMLElement).closest("textarea, input")) return;
       if (e.key === "Escape" || e.key === " ") { e.preventDefault(); onClose(); }
       else if (e.key === "ArrowRight" && idx < items.length - 1) onNavigate(items[idx + 1].id);
       else if (e.key === "ArrowLeft" && idx > 0) onNavigate(items[idx - 1].id);
@@ -28,7 +31,10 @@ export default function Preview({ root, items, id, onNavigate, onClose }: Props)
 
   let body: React.ReactNode;
   if (item.kind === "image" && browserImage) {
-    body = <img className={actual ? "actual" : "fit"} src={src} onClick={() => setActual(!actual)} title="Click to toggle actual size" />;
+    body = actual
+      ? <img className="actual" src={src} onClick={() => setActual(false)} title="Click to fit" />
+      : <Annotator src={src} annotations={item.annotations ?? []} editing={annotating}
+          onSave={(list) => api.setAnnotations(item.id, list).then(onItemChanged).catch(fail)} />;
   } else if (item.kind === "video") {
     body = <video src={src} controls autoPlay loop />;
   } else if (item.kind === "audio") {
@@ -47,6 +53,11 @@ export default function Preview({ root, items, id, onNavigate, onClose }: Props)
         <span className="name">{item.name}</span>
         <span className="muted">{idx + 1} / {items.length}</span>
         <span className="grow" />
+        {item.kind === "image" && browserImage && <>
+          <button className={annotating ? "primary" : ""} onClick={() => { setAnnotating(!annotating); setActual(false); }}
+            title="Drag on the picture to comment on an area">{annotating ? "Done commenting" : `Comment on area${item.annotations?.length ? ` (${item.annotations.length})` : ""}`}</button>
+          <button onClick={() => { setActual(!actual); setAnnotating(false); }}>{actual ? "Fit" : "100%"}</button>
+        </>}
         <button onClick={() => api.open(item.id)}>Open in default app</button>
         <button onClick={onClose}>Close (Esc)</button>
       </div>

@@ -181,6 +181,14 @@ export default function Inspector(p: Props) {
         <FolderAdder folders={folders} exclude={one.folders} onAdd={(f) => save({ addFolders: [f] })} />
       </section>
 
+      {!!one.annotations?.length && (
+        <section>
+          <label>Area comments ({one.annotations.length})</label>
+          <ol className="anno-list">
+            {one.annotations.map((a) => <li key={a.id} onClick={() => p.onPreview(one.id)}>{a.text}</li>)}
+          </ol>
+        </section>
+      )}
       <section>
         <label>Note</label>
         <textarea rows={3} value={note} placeholder="Add a note" onChange={(e) => setNote(e.target.value)}

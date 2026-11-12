@@ -219,7 +219,8 @@ export default function App() {
       />
       {previewId && (
         <Preview root={lib.root} items={items} id={previewId} onNavigate={(id) => { setPreviewId(id); setSelected(new Set([id])); setAnchor(id); }}
-          onClose={() => setPreviewId(null)} />
+          onClose={() => setPreviewId(null)} fail={fail}
+          onItemChanged={(it) => { setItems((list) => list.map((i) => (i.id === it.id ? it : i))); }} />
       )}
       {notice && <div className="toast ok" onClick={() => setNotice(null)}><span>{notice}</span></div>}
       {error && (

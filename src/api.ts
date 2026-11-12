@@ -1,5 +1,5 @@
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
-import type { DupGroup, Folder, Item, ItemPatch, LibraryInfo, Query, Rule, SmartFolder, Stats } from "./types";
+import type { Annotation, DupGroup, Folder, Item, ItemPatch, LibraryInfo, Query, Rule, SmartFolder, Stats } from "./types";
 
 export type ApiInfo = { port: number; token: string; running: boolean; error: string | null };
 
@@ -31,6 +31,7 @@ export const api = {
   exportPack: (ids: string[], dest: string) => invoke<number>("export_pack", { ids, dest }),
   exportFiles: (ids: string[], dest: string) => invoke<number>("export_files", { ids, dest }),
   importPack: (path: string) => invoke<[number, number]>("import_pack", { path }),
+  setAnnotations: (id: string, annotations: Annotation[]) => invoke<Item>("set_annotations", { id, annotations }),
   renameTag: (from: string, to: string) => invoke<void>("rename_tag", { from, to }),
   rebuildIndex: () => invoke<number>("rebuild_index"),
   reveal: (id: string) => invoke<void>("reveal_item", { id }),

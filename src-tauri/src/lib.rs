@@ -266,6 +266,11 @@ async fn import_paths(app: AppHandle, paths: Vec<String>, folder_id: Option<Stri
 }
 
 #[tauri::command]
+fn set_annotations(st: State<AppState>, id: String, annotations: Vec<Annotation>) -> R<Item> {
+    with_lib(&st, |l| l.set_annotations(&id, annotations))
+}
+
+#[tauri::command]
 fn rename_items(st: State<AppState>, names: Vec<(String, String)>) -> R<()> {
     with_lib(&st, |l| l.rename_many(&names))
 }
@@ -361,6 +366,7 @@ pub fn run() {
             import_paths,
             add_watched_folder,
             rename_items,
+            set_annotations,
             export_pack,
             export_files,
             import_pack,
@@ -479,6 +485,14 @@ mod tests {
         let out = tmp.join("exported");
         assert_eq!(pack::export_files(&lib, &two, &out).unwrap(), 2);
         assert!(out.join("Blue Ocean.jpg").exists());
+
+        // Area comments are stored clamped and are searchable.
+        let blue = q(&lib, |q| q.text = Some("Blue Ocean".into()))[0].id.clone();
+        let it = lib.set_annotations(&blue, vec![Annotation { id: String::new(), x: 0.1, y: 0.2, w: 2.0, h: 0.3, text: "nice wave texture".into(), created_at: 0 },
+            Annotation { id: String::new(), x: 0.0, y: 0.0, w: 0.1, h: 0.1, text: "  ".into(), created_at: 0 }]).unwrap();
+        assert_eq!(it.annotations.len(), 1, "empty comments dropped");
+        assert!((it.annotations[0].w - 0.9).abs() < 1e-6, "box kept inside the image");
+        assert_eq!(q(&lib, |q| q.text = Some("wave".into()))[0].id, blue);
 
         // Index is disposable: delete it and reopen.
         let root = lib.root.clone();

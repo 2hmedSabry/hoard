@@ -5,8 +5,9 @@ export type Item = {
   width: number; height: number; tags: string[]; folders: string[]; rating: number;
   note: string; url: string; palette: Swatch[]; createdAt: number; modifiedAt: number;
   deleted: boolean; thumb: string | null; duration: number | null;
-  fhash?: string; dhash?: string;
+  fhash?: string; dhash?: string; annotations?: Annotation[];
 };
+export type Annotation = { id: string; x: number; y: number; w: number; h: number; text: string; createdAt: number };
 export type Rule = { field: string; op: string; value: string };
 export type SmartFolder = { id: string; name: string; matchMode: "all" | "any"; rules: Rule[] };
 export type WatchedFolder = { id: string; path: string; folderId: string | null; enabled: boolean };
