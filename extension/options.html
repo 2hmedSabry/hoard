@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Hoard Collector settings</title><link rel="stylesheet" href="ui.css">
+<style>main { max-width: 520px; margin: 40px auto; padding: 0 16px; display: flex; flex-direction: column; gap: 14px; } ol { line-height: 1.8; padding-left: 20px; margin: 0; }</style></head>
+<body>
+  <main>
+    <h1><img src="icons/icon-32.png" alt="">Hoard Collector</h1>
+    <p class="muted">Connect this extension to the Hoard app on this computer.</p>
+    <ol class="muted">
+      <li>Open Hoard and click the library name at the top left.</li>
+      <li>Choose <b>Browser extension…</b> and click <b>Copy</b>.</li>
+      <li>Paste the token below and click <b>Connect</b>.</li>
+    </ol>
+    <label>Connection token <input id="token" type="password" autocomplete="off" spellcheck="false"></label>
+    <div class="row"><button id="connect" class="primary">Connect</button><span id="result" class="small"></span></div>
+    <p class="muted small">Tip: right-click any image and choose “Save to Hoard”, or press Alt+Shift+S to save a screenshot.</p>
+  </main>
+  <script type="module" src="options.js"></script>
+</body>
+</html>

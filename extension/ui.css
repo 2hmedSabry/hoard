@@ -1,0 +1,24 @@
+:root { --bg: #fbfaf8; --panel: #fff; --line: #e6e3de; --text: #22201d; --muted: #8a857e; --accent: #e8643f; --soft: #fbe3da; --danger: #d23d3d; --ok: #46a758; color-scheme: light; }
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1e1d21; --panel: #26252a; --line: #34323a; --text: #ecebee; --muted: #8e8b96; --accent: #f47a52; --soft: #3b2a24; --danger: #f06363; color-scheme: dark; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; font: 13px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif; background: var(--bg); color: var(--text); }
+h1 { font-size: 15px; margin: 0; display: flex; align-items: center; gap: 8px; }
+h1 img { width: 20px; height: 20px; }
+input, select, button { font: inherit; color: inherit; }
+input, select { width: 100%; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 6px 8px; outline: none; }
+input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--soft); }
+button { border: 1px solid var(--line); background: var(--panel); border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+button:hover:not(:disabled) { filter: brightness(0.97); }
+button:disabled { opacity: 0.5; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); font-size: 12px; }
+.muted { color: var(--muted); }
+.small { font-size: 11.5px; }
+.status { padding: 6px 10px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); }
+.status.ok { border-color: var(--ok); }
+.status.bad { border-color: var(--danger); color: var(--danger); }
+.row { display: flex; gap: 8px; align-items: center; }
+.grow { flex: 1; }
+a { color: var(--accent); }

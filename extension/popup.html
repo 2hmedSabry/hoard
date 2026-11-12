@@ -1,0 +1,26 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><link rel="stylesheet" href="ui.css"><link rel="stylesheet" href="popup.css"></head>
+<body>
+  <main>
+    <h1><img src="icons/icon-32.png" alt="">Hoard</h1>
+    <div id="status" class="status">Connecting…</div>
+    <div id="controls" hidden>
+      <label>Save into folder<select id="folder"><option value="">No folder</option></select></label>
+      <label>Tags <input id="tags" placeholder="comma, separated"></label>
+      <div class="row">
+        <button id="shot" class="primary grow">Screenshot visible area</button>
+        <button id="pick" class="grow">Pick images on page</button>
+      </div>
+    </div>
+    <section id="picker" hidden>
+      <div class="row"><span id="count" class="muted grow"></span>
+        <button id="all" class="small">Select all</button></div>
+      <div id="grid"></div>
+      <button id="savePicked" class="primary" disabled>Save selected</button>
+    </section>
+    <p id="msg" class="small muted"></p>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
